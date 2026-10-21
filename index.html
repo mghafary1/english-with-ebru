@@ -280,6 +280,21 @@ table.prog td.n { font-variant-numeric: tabular-nums; }
 .field input { padding: 10px 12px; }
 .err { color: var(--bad); font-size: .92em; }
 .okmsg { color: var(--good); font-size: .92em; }
+/* welcome gate */
+.gate { min-height: calc(100vh - 40px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; padding-block: 24px; }
+.gate h1 { font-size: 2.6em; letter-spacing: -.01em; }
+.gate .lead { color: var(--muted); max-width: 30em; font-size: 1.05em; }
+.mark { position: relative; width: 84px; height: 56px; margin-bottom: 4px; }
+.mark i { position: absolute; top: 0; width: 56px; height: 56px; border-radius: 50%; }
+.mark i:first-child { left: 0; background: var(--lake); }
+.mark i:last-child { right: 0; background: var(--brick); opacity: .85; mix-blend-mode: multiply; }
+:root[data-theme="dark"] .mark i:last-child { mix-blend-mode: screen; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mark i:last-child { mix-blend-mode: screen; } }
+.gatecard { width: 100%; max-width: 420px; text-align: left; margin-top: 8px; }
+.btn.big { padding: 14px 20px; font-size: 1.05em; width: 100%; }
+.pwrow { display: flex; gap: 8px; align-items: center; }
+.pwrow input { flex: 1; min-width: 0; }
+.gatelinks { justify-content: center; gap: 6px; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 700; z-index: 40; max-width: calc(100vw - 32px); text-align: center; }
 .daynav { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
 </style>
@@ -346,7 +361,7 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 // ---------- sync (her account) ----------
 const Sync = (function () {
   const enabled = !!(CFG.supabaseUrl && CFG.supabaseKey && window.supabase && window.supabase.createClient);
-  let client = null, user = null, timer = null, status = enabled ? "Not logged in" : "", busy = false, onChange = () => {};
+  let client = null, user = null, timer = null, status = enabled ? "Not logged in" : "", busy = false, onChange = () => {}, ready = false;
   if (enabled) {
     try { client = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }); } catch (e) { client = null; }
   }
@@ -394,22 +409,26 @@ const Sync = (function () {
     set(error ? "Offline — saved on this device" : "Synced ✓");
   }
   function queue() { if (!user) return; clearTimeout(timer); timer = setTimeout(push, 1500); }
+  function remember(email) { try { localStorage.setItem("ewe-account", JSON.stringify({ email })); } catch (e) {} }
   async function init() {
-    if (!client) return;
+    if (!client) { ready = true; return; }
     client.auth.onAuthStateChange((event, session) => {
       const was = user && user.id;
       user = session ? session.user : null;
       if (event === "PASSWORD_RECOVERY") { S.opened = { tool: "account", recover: true }; render(); }
-      if (user && user.id !== was) pull();
-      if (!user) set("Not logged in");
+      if (user && user.id !== was) { remember(user.email); if (ready) pull(); }
+      if (!user) { set("Not logged in"); if (was && ready) render(); }
       onChange();
     });
-    const { data } = await client.auth.getSession();
+    let data = null;
+    try { data = (await client.auth.getSession()).data; } catch (e) {}
     user = data && data.session ? data.session.user : null;
-    if (user) pull(); else set("Not logged in");
+    ready = true;
+    if (user) { remember(user.email); render(); pull(); } else { set("Not logged in"); render(); }
   }
   return {
-    enabled: () => !!client, user: () => user, status: () => status, onChange: (f) => (onChange = f),
+    enabled: () => !!client, ready: () => ready, user: () => user, status: () => status, onChange: (f) => (onChange = f),
+    knownEmail() { try { const a = JSON.parse(localStorage.getItem("ewe-account") || "null"); return a && a.email; } catch (e) { return null; } },
     queue, init, push,
     async signUp(email, pw) { return client.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname } }); },
     async signIn(email, pw) { return client.auth.signInWithPassword({ email, password: pw }); },
@@ -835,8 +854,8 @@ function renderHome() {
   app.append(hero);
   if (Sync.enabled() && !Sync.user()) {
     const c = h("div", { class: "card row" }); c.style.marginTop = "14px"; c.style.justifyContent = "space-between";
-    c.append(h("span", null, "Save your progress to your account, so you can use any device."));
-    const b = h("button", { class: "btn small" }, "Log in or sign up"); b.onclick = () => go({ tool: "account" }); c.append(b);
+    c.append(h("span", null, "You're not signed in, so progress is saved on this device only."));
+    const b = h("button", { class: "btn small" }, "Sign in"); b.onclick = () => { try { sessionStorage.removeItem("ewe-offline"); } catch (e) {} render(); }; c.append(b);
     app.append(c);
   }
   DATA.weeks.forEach((wk) => {
@@ -1406,9 +1425,77 @@ function renderAccount(v) {
   c.append(links);
 }
 
+// ---------- welcome gate ----------
+function offlineOK() { try { return sessionStorage.getItem("ewe-offline") === "1"; } catch (e) { return false; } }
+function renderSplash() { app.innerHTML = '<div class="gate"><div class="mark" aria-hidden="true"><i></i><i></i></div><p class="muted">Loading…</p></div>'; }
+function renderGate(mode) {
+  const known = Sync.knownEmail();
+  mode = mode || (known ? "signin" : "signup");
+  app.innerHTML = "";
+  const g = h("div", { class: "gate" });
+  g.append(h("div", { class: "mark", "aria-hidden": "true" }, "<i></i><i></i>"));
+  const titles = { signup: ["Hi Ebru!", "Welcome to your English course. Let’s make your account, so your progress is saved on every device."], signin: ["Hi Ebru!", "Welcome back. Sign in to continue your lessons."], reset: ["Forgot your password?", "No problem. Write your email and we’ll send you a link to make a new one."] };
+  g.append(h("h1", null, titles[mode][0]), h("p", { class: "lead" }, titles[mode][1]));
+  const card = h("div", { class: "card stack gatecard" });
+  const f1 = h("div", { class: "field" }, '<label for="g-em">Email</label>');
+  const em = h("input", { id: "g-em", type: "email", autocomplete: "email", inputmode: "email", autocapitalize: "off" });
+  em.value = known || ""; f1.append(em);
+  const f2 = h("div", { class: "field" }, '<label for="g-pw">' + (mode === "signup" ? "Choose a password (at least 8 characters)" : "Password") + "</label>");
+  const pwRow = h("div", { class: "pwrow" });
+  const pw = h("input", { id: "g-pw", type: "password", autocomplete: mode === "signup" ? "new-password" : "current-password" });
+  const eye = h("button", { class: "linkbtn small", type: "button" }, "Show");
+  eye.onclick = () => { pw.type = pw.type === "password" ? "text" : "password"; eye.textContent = pw.type === "password" ? "Show" : "Hide"; };
+  pwRow.append(pw, eye); f2.append(pwRow);
+  const msg = h("div", { role: "status" });
+  const btn = h("button", { class: "btn big" }, mode === "signup" ? "Create my account" : mode === "reset" ? "Send me the link" : "Sign in");
+  card.append(f1); if (mode !== "reset") card.append(f2); card.append(btn, msg);
+  const links = h("div", { class: "row gatelinks" });
+  const mk = (label, m) => { const l = h("button", { class: "linkbtn" }, label); l.onclick = () => renderGate(m); return l; };
+  if (mode === "signup") links.append(h("span", { class: "muted small" }, "Already have an account?"), mk("Sign in", "signin"));
+  if (mode === "signin") links.append(mk("Forgot password?", "reset"), h("span", { class: "muted small" }, "·"), mk("Create an account", "signup"));
+  if (mode === "reset") links.append(mk("Back to sign in", "signin"));
+  card.append(links);
+  g.append(card);
+  const off = h("button", { class: "linkbtn small", hidden: "" }, "Continue without signing in (saved on this device only)");
+  off.onclick = () => { try { sessionStorage.setItem("ewe-offline", "1"); } catch (e) {} render(); };
+  g.append(off);
+  app.append(g);
+  (known && mode === "signin" ? pw : em).focus();
+  async function submit() {
+    msg.className = ""; msg.textContent = "";
+    const e = em.value.trim(), p = pw.value;
+    if (!/^\S+@\S+\.\S+$/.test(e)) { msg.className = "err"; msg.textContent = "Please write your email address."; return; }
+    if (mode === "signup" && p.length < 8) { msg.className = "err"; msg.textContent = "Your password needs at least 8 characters."; return; }
+    if (mode === "signin" && !p) { msg.className = "err"; msg.textContent = "Please write your password."; return; }
+    btn.disabled = true; const label = btn.textContent; btn.textContent = "One moment…";
+    let r;
+    try { r = mode === "signup" ? await Sync.signUp(e, p) : mode === "reset" ? await Sync.reset(e) : await Sync.signIn(e, p); }
+    catch (x) { r = { error: { message: "network" } }; }
+    btn.disabled = false; btn.textContent = label;
+    if (r.error) {
+      const m = String(r.error.message || "");
+      msg.className = "err";
+      if (/network|fetch|Failed/i.test(m)) { msg.textContent = "I can't connect right now. Check your internet and try again."; off.hidden = false; }
+      else if (/Invalid login/i.test(m)) msg.textContent = "Wrong email or password. Try again, or tap “Forgot password?”.";
+      else if (/already registered|already exists/i.test(m)) { try { localStorage.setItem("ewe-account", JSON.stringify({ email: e })); } catch (x) {} renderGate("signin"); $("#g-pw").focus(); const mm = $(".gate [role=status]"); mm.className = "okmsg"; mm.textContent = "You already have an account. Please sign in."; }
+      else if (/Email not confirmed/i.test(m)) msg.textContent = "Please open the email we sent you and tap the link first.";
+      else msg.textContent = m;
+      return;
+    }
+    if (mode === "reset") { msg.className = "okmsg"; msg.textContent = "Done! Check your email for the link."; return; }
+    try { localStorage.setItem("ewe-account", JSON.stringify({ email: e })); } catch (x) {}
+    if (mode === "signup" && !(r.data && r.data.session)) { msg.className = "okmsg"; msg.innerHTML = "<b>Almost done!</b> Open the email we sent you and tap the link. Then come back and sign in."; links.innerHTML = ""; links.append(mk("Go to sign in", "signin")); return; }
+    S.opened = null; save(false); render();
+  }
+  btn.onclick = submit;
+  [em, pw].forEach((x) => x.addEventListener("keydown", (ev) => ev.key === "Enter" && submit()));
+}
+
 // ---------- render ----------
 function render() {
   const v = S.opened;
+  if (Sync.enabled() && !Sync.ready()) return renderSplash();
+  if (Sync.enabled() && !Sync.user() && !offlineOK() && !(v && v.tool === "account" && v.recover)) return renderGate();
   if (!v) return renderHome();
   if (v.tool === "words") return renderWords();
   if (v.tool === "mistakes") return renderMistakes();
