@@ -1443,7 +1443,7 @@ function renderAccount(v) {
 }
 
 // ---------- welcome gate ----------
-function offlineOK() { try { return sessionStorage.getItem("ewe-offline") === "1"; } catch (e) { return false; } }
+function offlineOK() { return false; }
 function renderSplash() { $("#hdr").hidden = true; app.innerHTML = '<div class="gate"><div class="mark" aria-hidden="true"><i></i><i></i></div><p class="muted">Loading…</p></div>'; }
 function renderGate(mode) {
   const known = Sync.knownEmail();
@@ -1475,7 +1475,6 @@ function renderGate(mode) {
   g.append(card);
   const off = h("button", { class: "linkbtn small", hidden: "" }, "Continue without signing in (saved on this device only)");
   off.onclick = () => { try { sessionStorage.setItem("ewe-offline", "1"); } catch (e) {} render(); };
-  g.append(off);
   app.append(g);
   (known && mode === "signin" ? pw : em).focus({ preventScroll: true });
   async function submit() {
@@ -1492,7 +1491,7 @@ function renderGate(mode) {
     if (r.error) {
       const m = String(r.error.message || "");
       msg.className = "err";
-      if (/network|fetch|Failed/i.test(m)) { msg.textContent = "I can't connect right now. Check your internet and try again."; off.hidden = false; }
+      if (/network|fetch|Failed/i.test(m)) { msg.textContent = "I can't connect right now. Check your internet and try again."; }
       else if (/Invalid login/i.test(m)) msg.textContent = "Wrong email or password. Try again, or tap “Forgot password?”.";
       else if (/already registered|already exists/i.test(m)) { try { localStorage.setItem("ewe-account", JSON.stringify({ email: e })); } catch (x) {} renderGate("signin"); $("#g-pw").focus(); const mm = $(".gate [role=status]"); mm.className = "okmsg"; mm.textContent = "You already have an account. Please sign in."; }
       else if (/Email not confirmed/i.test(m)) msg.textContent = "Please open the email we sent you and tap the link first.";
