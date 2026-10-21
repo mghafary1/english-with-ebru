@@ -16,6 +16,7 @@
   --lake: #1D6A96; --lake-soft: #DDEEF7; --brick: #B4532F; --brick-soft: #F7E6DE;
   --good: #2E7D4F; --good-soft: #DFF2E5; --bad: #B53A3A; --bad-soft: #F8E1E1; --warn: #9A6A00; --warn-soft: #FBF0D4;
   --on-accent: #FFFFFF; --scrim: rgba(15,30,38,.45);
+  --hdr: rgba(255,255,255,.84); --glow1: rgba(29,106,150,.16); --glow2: rgba(180,83,47,.12); --dot: rgba(28,43,51,.07);
   --font-display: "Lexend", "Segoe UI", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
   --r: 14px; --scale: 1;
@@ -27,21 +28,21 @@
     --bg: #111A1F; --surface: #18242B; --surface-2: #1F2E36; --ink: #E6EEF1; --muted: #9DB0B8; --line: #2C3F49;
     --lake: #6DB5DE; --lake-soft: #17384A; --brick: #E08A66; --brick-soft: #3A2419;
     --good: #6FCB94; --good-soft: #17352A; --bad: #EF8B8B; --bad-soft: #3D1E1E; --warn: #E8C468; --warn-soft: #3A3018;
-    --on-accent: #0E1A20; --scrim: rgba(0,0,0,.6); --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+    --on-accent: #0E1A20; --scrim: rgba(0,0,0,.6); --shadow: 0 1px 2px rgba(0,0,0,.3); --hdr: rgba(20,31,38,.86); --glow1: rgba(109,181,222,.12); --glow2: rgba(224,138,102,.09); --dot: rgba(230,238,241,.05); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #111A1F; --surface: #18242B; --surface-2: #1F2E36; --ink: #E6EEF1; --muted: #9DB0B8; --line: #2C3F49;
   --lake: #6DB5DE; --lake-soft: #17384A; --brick: #E08A66; --brick-soft: #3A2419;
   --good: #6FCB94; --good-soft: #17352A; --bad: #EF8B8B; --bad-soft: #3D1E1E; --warn: #E8C468; --warn-soft: #3A3018;
-  --on-accent: #0E1A20; --scrim: rgba(0,0,0,.6); --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+  --on-accent: #0E1A20; --scrim: rgba(0,0,0,.6); --shadow: 0 1px 2px rgba(0,0,0,.3); --hdr: rgba(20,31,38,.86); --glow1: rgba(109,181,222,.12); --glow2: rgba(224,138,102,.09); --dot: rgba(230,238,241,.05); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: calc(17px * var(--scale)); line-height: 1.55; }
+body { margin: 0; min-height: 100vh; background-color: var(--bg); background-image: radial-gradient(1100px 700px at -8% -12%, var(--glow1), transparent 62%), radial-gradient(1000px 700px at 108% 112%, var(--glow2), transparent 60%), radial-gradient(var(--dot) 1.2px, transparent 1.3px); background-size: auto, auto, 24px 24px; background-attachment: fixed; color: var(--ink); font-family: var(--font-body); font-size: calc(18px * var(--scale)); line-height: 1.55; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
-.wrap { max-width: 760px; margin: 0 auto; padding-block: 12px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 840px; margin: 0 auto; padding-block: 22px 90px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
 h1 { font-size: 1.9em; font-weight: 700; }
 h2 { font-size: 1.4em; font-weight: 600; }
@@ -56,21 +57,34 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .small { font-size: .9em; }
 .eyebrow { font-family: var(--font-display); font-size: .78em; letter-spacing: .08em; text-transform: uppercase; color: var(--lake); font-weight: 600; }
 
-/* top bar + drawer */
-.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); display: flex; align-items: center; gap: 10px; padding-block: 8px; margin-bottom: 12px; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-.burger { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; flex: none; }
-.burger span, .burger span::before, .burger span::after { display: block; width: 18px; height: 2px; background: var(--ink); border-radius: 2px; position: relative; content: ""; }
-.burger span::before { position: absolute; top: -6px; } .burger span::after { position: absolute; top: 6px; }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.05em; display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; background: none; border: 0; padding: 0; text-align: left; }
+/* header + drawer */
+.hdr { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; background: var(--hdr); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--hdr); }
+.hdr-in { display: flex; align-items: center; gap: 16px; min-height: 76px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 900px) { .hdr-in { min-height: 84px; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px)); } }
+.burger { width: 54px; height: 54px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; flex: none; box-shadow: var(--shadow); }
+.burger:hover { border-color: var(--lake); }
+.burger span, .burger span::before, .burger span::after { display: block; width: 22px; height: 2.5px; background: var(--ink); border-radius: 2px; position: relative; content: ""; }
+.burger span::before { position: absolute; top: -7px; } .burger span::after { position: absolute; top: 7px; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.4em; letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; background: none; border: 0; padding: 0; text-align: left; color: var(--ink); }
+.brand .bm { position: relative; width: 44px; height: 30px; flex: none; }
+.brand .bm i { position: absolute; top: 0; width: 30px; height: 30px; border-radius: 50%; }
+.brand .bm i:first-child { left: 0; background: var(--lake); }
+.brand .bm i:last-child { right: 0; background: var(--brick); opacity: .85; }
+.brand .bt { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.brand .bt small { font-family: var(--font-body); font-weight: 400; font-size: .5em; color: var(--muted); letter-spacing: .02em; }
+@media (max-width: 420px) { .brand { font-size: 1.18em; } .brand .bt small { display: none; } }
+.hdr-right { display: flex; align-items: center; gap: 10px; }
+.hello { font-family: var(--font-display); font-weight: 600; }
+.who { font-size: .8em; color: var(--muted); background: var(--surface-2); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+@media (max-width: 620px) { .hello, .who { display: none; } }
 .brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--lake); box-shadow: 6px 0 0 var(--brick); margin-right: 8px; flex: none; }
-.who { font-size: .82em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 30; }
-.drawer { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); background: var(--surface); z-index: 31; box-shadow: 4px 0 24px rgba(0,0,0,.2); display: flex; flex-direction: column; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding-left: calc(16px + env(safe-area-inset-left, 0px)); padding-right: 16px; gap: 4px; overflow-y: auto; transform: translateX(-105%); transition: transform .22s ease; }
+.drawer { position: fixed; top: 0; bottom: 0; left: 0; width: min(340px, 86vw); background: var(--surface); z-index: 31; box-shadow: 4px 0 24px rgba(0,0,0,.2); display: flex; flex-direction: column; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding-left: calc(16px + env(safe-area-inset-left, 0px)); padding-right: 16px; gap: 4px; overflow-y: auto; transform: translateX(-105%); transition: transform .22s ease; }
 .drawer.open { transform: none; }
 @media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
 .drawer .dh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.navi { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px; border-radius: 10px; border: 0; background: none; font-family: var(--font-display); font-weight: 500; }
+.navi { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 14px 12px; font-size: 1.02em; border-radius: 10px; border: 0; background: none; font-family: var(--font-display); font-weight: 500; }
 .navi:hover, .navi.on { background: var(--surface-2); }
 .navi .badge { font-size: .78em; font-weight: 700; background: var(--lake-soft); color: var(--lake); padding: 2px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
 .navi .badge.red { background: var(--bad-soft); color: var(--bad); }
@@ -300,6 +314,7 @@ table.prog td.n { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
+<header class="hdr" id="hdr" hidden></header>
 <div class="wrap" id="app"></div>
 <div class="scrim" id="scrim" hidden></div>
 <nav class="drawer" id="drawer" aria-label="Menu" aria-hidden="true"></nav>
@@ -793,7 +808,7 @@ $("#scrim").onclick = closeMenu;
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
 function drawMenu() {
   const dr = $("#drawer"); dr.innerHTML = "";
-  const head = h("div", { class: "dh" }, '<span class="brand"><span class="dot"></span>English with Ebru</span>');
+  const head = h("div", { class: "dh" }, '<span class="brand" style="font-size:1.15em"><span class="bm" aria-hidden="true"><i></i><i></i></span><span class="bt">English with Ebru</span></span>');
   const x = h("button", { class: "x", "aria-label": "Close menu" }, "×"); x.onclick = closeMenu; head.append(x); dr.append(head);
   const v = S.opened || {};
   const due = dueCards().length, open = S.mistakes.filter((m) => !m.fixed).length;
@@ -819,14 +834,16 @@ function drawMenu() {
   if (Sync.enabled()) dr.append(h("div", { class: "sync" }, Sync.user() ? esc(Sync.user().email) + "<br>" + esc(Sync.status()) : "Saved on this device only. Log in to save it to your account."));
 }
 function topbar() {
-  const bar = h("div", { class: "topbar" });
+  const hdr = $("#hdr"); hdr.hidden = false; hdr.innerHTML = "";
+  const inner = h("div", { class: "hdr-in" });
   const b = h("button", { class: "burger", "aria-label": "Open menu" }, "<span></span>"); b.onclick = openMenu;
-  const brand = h("button", { class: "brand" }, '<span class="dot"></span>English with Ebru'); brand.onclick = () => go(null);
-  bar.append(b, brand);
-  if (Sync.enabled()) { const who = h("span", { class: "who" }, Sync.user() ? esc(Sync.status()) : ""); bar.append(who); }
-  return bar;
+  const brand = h("button", { class: "brand" }, '<span class="bm" aria-hidden="true"><i></i><i></i></span><span class="bt">English with Ebru<small>Your 2-week B1 course</small></span>'); brand.onclick = () => go(null);
+  const right = h("div", { class: "hdr-right" });
+  if (Sync.enabled() && Sync.user()) right.append(h("span", { class: "hello" }, "Hi, Ebru"), h("span", { class: "who" }, esc(Sync.status())));
+  inner.append(b, brand, right); hdr.append(inner);
+  return document.createTextNode("");
 }
-Sync.onChange(() => { const w = $(".topbar .who"); if (w) w.textContent = Sync.user() ? Sync.status() : ""; if ($("#drawer").classList.contains("open")) drawMenu(); });
+Sync.onChange(() => { const w = $("#hdr .who"); if (w) w.textContent = Sync.user() ? Sync.status() : ""; if ($("#drawer").classList.contains("open")) drawMenu(); });
 
 // ---------- home ----------
 function renderHome() {
@@ -1427,11 +1444,11 @@ function renderAccount(v) {
 
 // ---------- welcome gate ----------
 function offlineOK() { try { return sessionStorage.getItem("ewe-offline") === "1"; } catch (e) { return false; } }
-function renderSplash() { app.innerHTML = '<div class="gate"><div class="mark" aria-hidden="true"><i></i><i></i></div><p class="muted">Loading…</p></div>'; }
+function renderSplash() { $("#hdr").hidden = true; app.innerHTML = '<div class="gate"><div class="mark" aria-hidden="true"><i></i><i></i></div><p class="muted">Loading…</p></div>'; }
 function renderGate(mode) {
   const known = Sync.knownEmail();
   mode = mode || (known ? "signin" : "signup");
-  app.innerHTML = "";
+  $("#hdr").hidden = true; app.innerHTML = "";
   const g = h("div", { class: "gate" });
   g.append(h("div", { class: "mark", "aria-hidden": "true" }, "<i></i><i></i>"));
   const titles = { signup: ["Hi Ebru!", "Welcome to your English course. Let’s make your account, so your progress is saved on every device."], signin: ["Hi Ebru!", "Welcome back. Sign in to continue your lessons."], reset: ["Forgot your password?", "No problem. Write your email and we’ll send you a link to make a new one."] };
@@ -1460,7 +1477,7 @@ function renderGate(mode) {
   off.onclick = () => { try { sessionStorage.setItem("ewe-offline", "1"); } catch (e) {} render(); };
   g.append(off);
   app.append(g);
-  (known && mode === "signin" ? pw : em).focus();
+  (known && mode === "signin" ? pw : em).focus({ preventScroll: true });
   async function submit() {
     msg.className = ""; msg.textContent = "";
     const e = em.value.trim(), p = pw.value;
@@ -1492,10 +1509,14 @@ function renderGate(mode) {
 }
 
 // ---------- render ----------
+let lastKind = null;
+try { history.scrollRestoration = "manual"; } catch (e) {}
 function render() {
   const v = S.opened;
-  if (Sync.enabled() && !Sync.ready()) return renderSplash();
-  if (Sync.enabled() && !Sync.user() && !offlineOK() && !(v && v.tool === "account" && v.recover)) return renderGate();
+  const kind = Sync.enabled() && !Sync.ready() ? "splash" : (Sync.enabled() && !Sync.user() && !offlineOK() && !(v && v.tool === "account" && v.recover)) ? "gate" : "app";
+  if (kind !== lastKind) { lastKind = kind; window.scrollTo(0, 0); }
+  if (kind === "splash") return renderSplash();
+  if (kind === "gate") return renderGate();
   if (!v) return renderHome();
   if (v.tool === "words") return renderWords();
   if (v.tool === "mistakes") return renderMistakes();
