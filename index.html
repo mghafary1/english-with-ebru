@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>English with Ebru</title>
-<meta name="description" content="A 2-week B1 English course: daily lessons with audio, speaking practice, exercises, flashcards and progress.">
+<meta name="description" content="A B1 English course: daily lessons with audio, speaking practice, exercises, flashcards and progress.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='12' cy='16' r='9' fill='%231D6A96'/%3E%3Ccircle cx='21' cy='16' r='9' fill='%23B4532F' fill-opacity='.85'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -487,6 +487,79 @@ body { background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%) fixed;
 .tips span { display: inline-flex; align-items: center; gap: 8px; }
 .tips span i { width: 8px; height: 8px; border-radius: 50%; background: var(--k); }
 @media (max-width: 700px) { .jbar { text-align: left; width: 100%; } .journey .jh { margin-bottom: 20px; } .node .here { font-size: .62em; } }
+/* ===== Menu hub ===== */
+.drawer > * { flex-shrink: 0; }
+.drawer { width: min(340px, 88vw); padding-top: calc(14px + env(safe-area-inset-top, 0px)); gap: 2px; background: var(--surface); }
+.mprof { position: relative; border-radius: 20px; padding: 18px; color: #fff; background: linear-gradient(135deg, var(--hero1), var(--hero2)); display: grid; gap: 14px; margin-bottom: 8px; overflow: hidden; }
+.mprof::after { content: ""; position: absolute; right: -40px; top: -60px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(242,207,115,.45), transparent 65%); pointer-events: none; }
+.mprof .x { position: absolute; top: 10px; right: 10px; z-index: 1; background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25); color: #fff; }
+.mp-top { display: flex; gap: 12px; align-items: center; padding-right: 40px; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 1.3em; background: linear-gradient(135deg, #F2CF73, #E9A27F); color: #12405D; flex: none; box-shadow: 0 0 0 3px rgba(255,255,255,.25); }
+.mp-name { display: grid; min-width: 0; }
+.mp-name b { font-family: var(--font-display); font-size: 1.15em; }
+.mp-name small { opacity: .8; font-size: .8em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-stats { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; }
+.mp-stats > span { display: grid; font-size: .78em; opacity: .9; }
+.mp-stats b { font-family: var(--font-display); font-size: 1.5em; line-height: 1.1; opacity: 1; }
+.mring { position: relative; width: 52px; height: 52px; }
+.mring svg { width: 52px; height: 52px; transform: rotate(-90deg); }
+.mring circle { fill: none; stroke-width: 5; }
+.mring .bgc { stroke: rgba(255,255,255,.2); } .mring .fgc { stroke: #F2CF73; stroke-linecap: round; }
+.mring i { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: .78em; }
+.mp-go { background: #fff !important; color: #12425E !important; box-shadow: none !important; width: 100%; }
+.mlabel { font-family: var(--font-display); font-size: .7em; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 14px 12px 4px; }
+.navi { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 12px; transition: background .12s, transform .12s; }
+.navi:hover { background: var(--surface-2); transform: translateX(2px); }
+.navi.on { background: var(--lake-soft); color: var(--lake); }
+.navi .ni { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); }
+.navi.on .ni { background: var(--lake); color: var(--on-accent); }
+.navi .ni svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.navi .badge.grey { background: var(--surface-2); color: var(--muted); }
+.navi .badge.gold { background: color-mix(in srgb, #F2CF73 35%, transparent); color: var(--warn); }
+.mfoot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 2px; }
+.mfoot .sync { display: flex; align-items: center; gap: 8px; padding: 6px 12px; margin: 0; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+/* desktop: menu stays open as a sidebar */
+@media (min-width: 1200px) {
+  body.side { padding-left: 340px; }
+  body.side .drawer { transform: none; box-shadow: none; border-right: 1px solid var(--line); z-index: 7; width: 340px; }
+  body.side .drawer .x { display: none; }
+  body.side .burger { visibility: hidden; }
+  body.side .scrim { display: none; }
+}
+
+/* new pages */
+.searchbox { font: inherit; width: 100%; margin-top: 14px; padding: 12px 16px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.gcard { display: grid; gap: 10px; }
+.maplist { display: grid; gap: 8px; }
+.maprow { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 14px; padding: 10px 14px; transition: transform .12s, box-shadow .12s, border-color .12s; }
+.maprow:hover { transform: translateX(3px); box-shadow: var(--shadow); border-color: var(--lake); }
+.maprow .mdot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: .85em; border: 2px solid var(--line); color: var(--muted); }
+.maprow.done .mdot { background: var(--good); border-color: var(--good); color: var(--on-accent); }
+.maprow.next { border-color: var(--lake); box-shadow: 0 0 0 3px var(--lake-soft); }
+.maprow.next .mdot { background: var(--lake); border-color: var(--lake); color: var(--on-accent); }
+.maprow .mt { display: grid; min-width: 0; }
+.maprow .mt small { color: var(--muted); }
+.maprow .ms { font-size: .82em; font-weight: 700; color: var(--muted); }
+.maprow.done .ms { color: var(--good); } .maprow.next .ms { color: var(--lake); }
+.librow { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px dashed var(--line); }
+.librow:last-child { border-bottom: 0; }
+.seg.small button { padding: 5px 12px; font-size: .85em; }
+.bigq { font-family: var(--font-display); font-size: 1.45em; font-weight: 600; line-height: 1.3; }
+.achgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.ach { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 6px; justify-items: center; text-align: center; box-shadow: var(--shadow); opacity: .75; transition: transform .15s, box-shadow .15s; }
+.ach:hover { transform: translateY(-3px); box-shadow: var(--lift); }
+.ach.got { opacity: 1; border-color: color-mix(in srgb, #F2CF73 60%, var(--line)); }
+.abadge { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); }
+.abadge svg { width: 30px; height: 30px; fill: currentColor; }
+.ach.got .abadge { background: linear-gradient(135deg, #F2CF73, #E9A27F); color: #fff; box-shadow: 0 8px 20px rgba(233,162,127,.45); }
+.ach b { font-family: var(--font-display); }
+.ach span { font-size: .85em; color: var(--muted); }
+.ameter { width: 100%; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; display: block; }
+.ameter i { display: block; height: 100%; background: linear-gradient(90deg, #F2CF73, #E9A27F); }
+.ach small { font-size: .78em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.allweeks { display: flex; justify-content: center; margin-top: 18px; }
+
 </style>
 </head>
 <body>
@@ -531,7 +604,7 @@ function load() {
   try { S = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { S = null; }
   S = S && S.v === 1 ? fill(S) : blank();
 }
-function save(touch) { if (touch !== false) S.updated = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} Sync.queue(); }
+function save(touch) { if (touch !== false) { S.updated = Date.now(); try { checkAch(); } catch (e) {} } try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} Sync.queue(); }
 load();
 const dkey = (w, d) => w + "-" + d;
 function dayState(k) { const d = S.days[k] || (S.days[k] = { steps: {}, ans: {}, write: "", checks: {} }); d.ans = d.ans || {}; d.checks = d.checks || {}; d.steps = d.steps || {}; return d; }
@@ -540,7 +613,7 @@ function today() { return localISO(); }
 function addDays(iso, n) { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localISO(d); }
 function markActive() { S.activity[today()] = (S.activity[today()] || 0) + 1; }
 function streak() { let n = 0, d = today(); if (!S.activity[d]) d = addDays(d, -1); while (S.activity[d]) { n++; d = addDays(d, -1); } return n; }
-function applySettings() { document.documentElement.style.setProperty("--scale", S.settings.scale || 1); }
+function applySettings() { const r = document.documentElement; r.style.setProperty("--scale", S.settings.scale || 1); const t = S.settings.theme; if (t === "light" || t === "dark") r.setAttribute("data-theme", t); else r.removeAttribute("data-theme"); }
 applySettings();
 
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2200); }
@@ -574,6 +647,7 @@ const Sync = (function () {
     const ni = {}; out.notes.forEach((n) => (ni[n.id] = n));
     b.notes.forEach((n) => { const x = ni[n.id]; if (!x) out.notes.push(n); else if ((n.updated || 0) > (x.updated || 0)) Object.assign(x, n); });
     for (const d in b.activity) out.activity[d] = Math.max(out.activity[d] || 0, b.activity[d]);
+    out.ach = Object.assign({}, b.ach || {}, a.ach || {});
     if ((b.updated || 0) > (a.updated || 0)) out.settings = b.settings;
     out.updated = Math.max(a.updated || 0, b.updated || 0);
     return out;
@@ -979,42 +1053,274 @@ function nextDay() {
   return null;
 }
 function go(view) { stopAll(); closeMenu(); S.opened = view; save(false); render(); window.scrollTo(0, 0); }
-function openMenu() { drawMenu(); $("#drawer").classList.add("open"); $("#drawer").setAttribute("aria-hidden", "false"); $("#scrim").hidden = false; setTimeout(() => { const f = $("#drawer .navi"); f && f.focus(); }, 50); }
+function openMenu() { if (document.body.classList.contains("side") && window.innerWidth >= 1200) return; drawMenu(); $("#drawer").classList.add("open"); $("#drawer").setAttribute("aria-hidden", "false"); $("#scrim").hidden = false; setTimeout(() => { const f = $("#drawer .navi"); f && f.focus(); }, 50); }
 function closeMenu() { $("#drawer").classList.remove("open"); $("#drawer").setAttribute("aria-hidden", "true"); $("#scrim").hidden = true; }
 $("#scrim").onclick = closeMenu;
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
+// ---------- menu hub ----------
+const MI = {
+  home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  today: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z"/></svg>',
+  map: '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6"/></svg>',
+  lib: '<svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
+  mic: '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>',
+  cards: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="14" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v12"/></svg>',
+  target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>',
+  note: '<svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h6"/></svg>',
+  chart: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  star: '<svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  out: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
+};
+function totalLessonDays() { return DATA.weeks.reduce((a, wk) => a + wk.days.length, 0); }
+function lessonsDone() { return Object.keys(S.days).filter((k) => dayProgress(k) === 1).length; }
+function bestStreak() {
+  const ds = Object.keys(S.activity).sort(); let best = 0, run = 0, prev = null;
+  ds.forEach((d) => { run = prev && addDays(prev, 1) === d ? run + 1 : 1; best = Math.max(best, run); prev = d; });
+  return best;
+}
+function coursePct() { const total = DATA.weeks.length * 7; const done = lessonsDone() + DATA.weeks.filter((wk) => sundayDone(wk.week)).length; return Math.round((100 * done) / total); }
+
+// achievements
+function achList() {
+  const words = Object.keys(S.cards).length, fixed = S.mistakes.filter((m) => m.fixed).length, bs = bestStreak(), ld = lessonsDone();
+  let clear = 0, writes = 0;
+  Object.values(S.days).forEach((d) => { Object.values(d.say || {}).forEach((x) => { if (x.best >= 85) clear++; }); writes += (d.submissions || []).length; });
+  const perfect = DATA.weeks.some((wk) => { const st = S.sundays[wk.week]; if (!st) return false; return wk.sunday.quiz.every((q, i) => st.ans["sq" + i] === q.answer); });
+  const list = [
+    ["first", "First step", "Finish your first lesson", ld, 1],
+    ["s3", "On a roll", "Study 3 days in a row", bs, 3],
+    ["s7", "One full week", "Study 7 days in a row", bs, 7],
+    ["s30", "Unstoppable", "Study 30 days in a row", bs, 30],
+    ["w50", "50 words", "Learn 50 words", words, 50],
+    ["w150", "150 words", "Learn 150 words", words, 150],
+    ["w300", "300 words", "Learn 300 words", words, 300],
+    ["f10", "Mistake fixer", "Fix 10 mistakes", fixed, 10],
+    ["f50", "Mistake master", "Fix 50 mistakes", fixed, 50],
+    ["clear", "Crystal clear", "Get 85% or more on 20 spoken sentences", clear, 20],
+    ["writer", "Writer", "Submit 10 writing tasks", writes, 10],
+    ["perfect", "Perfect test", "Get every answer right in a Sunday test", perfect ? 1 : 0, 1],
+    ["notes", "Note taker", "Write 5 notes", S.notes.length, 5],
+  ];
+  DATA.weeks.forEach((wk) => { const n = wk.days.filter((d) => dayProgress(dkey(wk.week, d.day)) === 1).length + (sundayDone(wk.week) ? 1 : 0); list.push(["wk" + wk.week, "Week " + wk.week + " done", "Finish every day of week " + wk.week + ": " + wk.title, n, 7]); });
+  return list.map(([id, name, desc, have, need]) => ({ id, name, desc, have: Math.min(have, need), need, done: have >= need }));
+}
+let achReady = false;
+function checkAch() {
+  S.ach = S.ach || {};
+  const fresh = achList().filter((a) => a.done && !S.ach[a.id]);
+  fresh.forEach((a) => (S.ach[a.id] = today()));
+  if (fresh.length && achReady) { toast("New badge: " + fresh[0].name + "!"); confetti(); }
+  achReady = true;
+  return fresh.length;
+}
+
 function drawMenu() {
   const dr = $("#drawer"); dr.innerHTML = "";
-  const head = h("div", { class: "dh" }, '<span class="brand" style="font-size:1.15em"><span class="bm" aria-hidden="true"><i></i><i></i></span><span class="bt">English with Ebru</span></span>');
-  const x = h("button", { class: "x", "aria-label": "Close menu" }, "×"); x.onclick = closeMenu; head.append(x); dr.append(head);
   const v = S.opened || {};
   const due = dueCards().length, open = S.mistakes.filter((m) => !m.fixed).length;
   const nd = nextDay();
-  const items = [
-    ["Home", null, !S.opened, null],
-    ["Today's lesson", nd ? { w: nd.w, d: nd.d } : null, v.w && !v.tool, null],
-    ["sep"],
-    ["My progress", { tool: "progress" }, v.tool === "progress", null],
-    ["My words", { tool: "words" }, v.tool === "words", due ? [due + " due", ""] : null],
-    ["My mistakes", { tool: "mistakes" }, v.tool === "mistakes", open ? [open, "red"] : null],
-    ["My notes", { tool: "notes" }, v.tool === "notes", S.notes.length ? [S.notes.length, ""] : null],
-    ["sep"],
-    ["Settings", { tool: "settings" }, v.tool === "settings", null],
+  const x = h("button", { class: "x", "aria-label": "Close menu" }, "×"); x.onclick = closeMenu;
+  // profile card
+  const prof = h("div", { class: "mprof" });
+  const pct = coursePct(), C = 2 * Math.PI * 20;
+  prof.innerHTML = '<div class="mp-top"><span class="avatar">E</span><span class="mp-name"><b>Hi, Ebru</b><small>' + esc(Sync.user() ? Sync.user().email : "English with Ebru") + '</small></span></div>' +
+    '<div class="mp-stats"><span><b>' + streak() + '</b>day streak</span><span><b>' + lessonsDone() + "/" + totalLessonDays() + '</b>lessons</span><span class="mring"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" class="bgc"/><circle cx="24" cy="24" r="20" class="fgc" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pct / 100)).toFixed(1) + '"/></svg><i>' + pct + "%</i></span></div>";
+  prof.prepend(x);
+  if (nd) {
+    const cont = h("button", { class: "btn mp-go" }, nd.d === 7 ? "Start Sunday review" : (dayProgress(dkey(nd.w, nd.d)) > 0 ? "Continue today's lesson" : "Start today's lesson"));
+    cont.onclick = () => go({ w: nd.w, d: nd.d }); prof.append(cont);
+  }
+  dr.append(prof);
+  const ach = achList(), achDone = ach.filter((a) => a.done).length;
+  const groups = [
+    ["Learn", [
+      ["Home", MI.home, null, !S.opened],
+      ["Course map", MI.map, { tool: "map" }, v.tool === "map", [DATA.weeks.length + " weeks", ""]],
+      ["Grammar book", MI.book, { tool: "grammar" }, v.tool === "grammar"],
+      ["Listening library", MI.lib, { tool: "library" }, v.tool === "library"],
+    ]],
+    ["Practice", [
+      ["Quick review", MI.bolt, { tool: "quick" }, v.tool === "quick", ["10 min", "gold"]],
+      ["Speaking practice", MI.mic, { tool: "practice" }, v.tool === "practice"],
+    ]],
+    ["My stuff", [
+      ["My words", MI.cards, { tool: "words" }, v.tool === "words", due ? [due + " due", ""] : [Object.keys(S.cards).length, "grey"]],
+      ["My mistakes", MI.target, { tool: "mistakes" }, v.tool === "mistakes", open ? [open, "red"] : null],
+      ["My notes", MI.note, { tool: "notes" }, v.tool === "notes", S.notes.length ? [S.notes.length, "grey"] : null],
+    ]],
+    ["Me", [
+      ["My progress", MI.chart, { tool: "progress" }, v.tool === "progress"],
+      ["Achievements", MI.star, { tool: "ach" }, v.tool === "ach", [achDone + "/" + ach.length, "gold"]],
+      ["Settings", MI.gear, { tool: "settings" }, v.tool === "settings"],
+    ]],
   ];
-  if (Sync.enabled()) items.push(["Account", { tool: "account" }, v.tool === "account", Sync.user() ? null : ["Log in", ""]]);
-  items.forEach((it) => {
-    if (it[0] === "sep") { dr.append(h("div", { class: "dsep" })); return; }
-    const b = h("button", { class: "navi" + (it[2] ? " on" : "") }, "<span>" + it[0] + "</span>" + (it[3] ? '<span class="badge ' + it[3][1] + '">' + it[3][0] + "</span>" : ""));
-    b.onclick = () => go(it[1]);
-    dr.append(b);
+  groups.forEach(([label, items]) => {
+    dr.append(h("div", { class: "mlabel" }, label));
+    items.forEach(([name, icon, view, on, badge]) => {
+      const b = h("button", { class: "navi" + (on ? " on" : "") }, '<span class="ni">' + icon + "</span><span class=\"nn\">" + name + "</span>" + (badge ? '<span class="badge ' + badge[1] + '">' + badge[0] + "</span>" : ""));
+      b.onclick = () => go(view);
+      dr.append(b);
+    });
   });
-  if (Sync.enabled()) dr.append(h("div", { class: "sync" }, Sync.user() ? esc(Sync.user().email) + "<br>" + esc(Sync.status()) : "Saved on this device only. Log in to save it to your account."));
+  const foot = h("div", { class: "mfoot" });
+  if (Sync.enabled() && Sync.user()) {
+    foot.append(h("div", { class: "sync" }, '<span class="sdot"></span>' + esc(Sync.status())));
+    const so = h("button", { class: "navi" }, '<span class="ni">' + MI.out + '</span><span class="nn">Sign out</span>');
+    so.onclick = async () => { so.disabled = true; await Sync.signOut(); closeMenu(); toast("Signed out"); go(null); };
+    foot.append(so);
+  }
+  dr.append(foot);
 }
+
+// ---------- course map ----------
+function renderMap() {
+  pageHead("Course map", "Every lesson in the course. Tap a day to open it.");
+  const nd = nextDay();
+  DATA.weeks.forEach((wk) => {
+    const c = h("div", { class: "card stack mapweek" }); c.style.marginTop = "16px";
+    const n = wk.days.filter((d) => dayProgress(dkey(wk.week, d.day)) === 1).length + (sundayDone(wk.week) ? 1 : 0);
+    c.append(h("div", { class: "row", style: "justify-content:space-between" }, '<div><div class="eyebrow">Week ' + wk.week + "</div><h2>" + esc(wk.title) + '</h2></div><span class="pill' + (n === 7 ? " good" : "") + '">' + n + " of 7 done</span>"));
+    const list = h("div", { class: "maplist" });
+    wk.days.forEach((d) => {
+      const k = dkey(wk.week, d.day), p = dayProgress(k), isNext = nd && nd.w === wk.week && nd.d === d.day;
+      const b = h("button", { class: "maprow" + (p === 1 ? " done" : "") + (isNext ? " next" : "") }, '<span class="mdot">' + (p === 1 ? "✓" : d.dayName.slice(0, 3)) + '</span><span class="mt"><b>' + esc(d.title) + "</b><small>" + esc(d.grammar.title) + '</small></span><span class="ms">' + (p === 1 ? "Done" : isNext ? "Next" : p > 0 ? Math.round(p * 7) + "/7" : "") + "</span>");
+      b.onclick = () => go({ w: wk.week, d: d.day }); list.append(b);
+    });
+    const sd = sundayDone(wk.week), isNextS = nd && nd.w === wk.week && nd.d === 7;
+    const s = h("button", { class: "maprow sun" + (sd ? " done" : "") + (isNextS ? " next" : "") }, '<span class="mdot">' + (sd ? "✓" : "★") + '</span><span class="mt"><b>Review and test</b><small>Sunday</small></span><span class="ms">' + (sd ? "Done" : isNextS ? "Next" : "") + "</span>");
+    s.onclick = () => go({ w: wk.week, d: 7 }); list.append(s);
+    c.append(list); app.append(c);
+  });
+}
+
+// ---------- grammar book ----------
+function renderGrammarBook() {
+  pageHead("Grammar book", "Every grammar rule from the course, in one place.");
+  const search = h("input", { type: "search", id: "gsearch", placeholder: "Search a rule (for example: past, will, a / an)", "aria-label": "Search grammar" });
+  search.className = "searchbox";
+  const box = h("div", { class: "stack" }); box.style.marginTop = "14px";
+  app.append(search, box);
+  const all = [];
+  DATA.weeks.forEach((wk) => wk.days.forEach((d) => all.push({ wk, d })));
+  function draw() {
+    const q = search.value.trim().toLowerCase();
+    box.innerHTML = "";
+    const hits = all.filter(({ d }) => !q || (d.grammar.title + " " + d.grammar.points.join(" ") + " " + d.grammar.examples.map((e) => e.en).join(" ")).toLowerCase().includes(q));
+    if (!hits.length) box.append(h("p", { class: "muted" }, "Nothing found. Try another word."));
+    hits.forEach(({ wk, d }) => {
+      const G = d.grammar;
+      const c = h("div", { class: "card gcard" });
+      c.innerHTML = '<div class="eyebrow">Week ' + wk.week + " · " + d.dayName + " · " + esc(d.title) + "</div><h3>" + esc(G.title) + '</h3><ul class="goals">' + G.points.map((x) => "<li>" + esc(x) + "</li>").join("") + '</ul><div class="exs">' + G.examples.map((e) => "<div>" + esc(e.en) + (e.note ? ' <span class="note">— ' + esc(e.note) + "</span>" : "") + "</div>").join("") + "</div>" + (G.tr ? '<div class="tr"><b>Türkçe ipucu</b><br>' + esc(G.tr) + "</div>" : "");
+      const open = h("button", { class: "linkbtn small" }, "Practice this in the lesson →");
+      open.onclick = () => { const ds = dayState(dkey(wk.week, d.day)); ds.open = "grammar"; save(false); go({ w: wk.week, d: d.day }); };
+      c.append(open); box.append(c);
+    });
+  }
+  search.oninput = draw; draw();
+}
+
+// ---------- listening library ----------
+function renderLibrary() {
+  pageHead("Listening library", "Every conversation, reading and model answer. Good for the bus, a walk or the kitchen.");
+  DATA.weeks.forEach((wk) => {
+    const c = h("div", { class: "card stack" }); c.style.marginTop = "16px";
+    c.append(h("div", null, '<div class="eyebrow">Week ' + wk.week + "</div><h2>" + esc(wk.title) + "</h2>"));
+    wk.days.forEach((d) => {
+      const A = d.audio; if (!A) return;
+      const row = h("div", { class: "librow" });
+      row.append(h("div", { class: "lt" }, "<b>" + d.dayName + ": " + esc(d.title) + "</b>"));
+      const tabs = h("div", { class: "seg small" });
+      const slot = h("div");
+      const items = [["Conversation", A.listen], ["Reading", A.read], ["Model answer", A.speak], ["New words", A.vocab]].filter((x) => x[1]);
+      let cur = null;
+      items.forEach(([label, src], i) => {
+        const b = h("button", null, label);
+        b.onclick = () => { stopAll(); tabs.querySelectorAll("button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); slot.innerHTML = ""; cur = makePlayer(src); slot.append(cur.el); };
+        tabs.append(b);
+      });
+      row.append(tabs, slot);
+      c.append(row);
+    });
+    app.append(c);
+  });
+}
+
+// ---------- quick review ----------
+function renderQuick() {
+  pageHead("Quick review", "About 10 minutes. Perfect for a busy day, and it keeps your streak going.");
+  const wrap = h("div", { class: "stack" }); wrap.style.marginTop = "14px";
+  const learned = VOCAB.filter((v) => S.cards[v.id]);
+  const c1 = h("div", { class: "card stack" });
+  c1.append(h("h2", null, "1. Words"));
+  const fbox = h("div");
+  const due = dueCards();
+  const list = (due.length ? due : shuffle(learned, learned.length + new Date().getDate())).slice(0, 10);
+  if (!learned.length) fbox.append(h("p", { class: "muted" }, "You don't have words yet. Finish step 3 of a lesson first."));
+  else flashSession(fbox, list);
+  c1.append(fbox);
+  const c2 = h("div", { class: "card stack" });
+  c2.append(h("h2", null, "2. Fix 3 mistakes"));
+  const open = S.mistakes.filter((m) => !m.fixed);
+  if (!open.length) c2.append(h("p", { class: "muted" }, "No mistakes to fix. Great job!"));
+  else shuffle(open, open.length + new Date().getDate()).slice(0, 3).forEach((m) => c2.append(retryBlock(m)));
+  const c3 = h("div", { class: "card stack" });
+  c3.append(h("h2", null, "3. Say 2 sentences"));
+  const say = shuffle(learned, 99 + new Date().getDate()).slice(0, 2);
+  const qrec = (S.quickSay = S.quickSay || {});
+  const pls = {};
+  if (!say.length) c3.append(h("p", { class: "muted" }, "Finish a lesson first, then come back."));
+  say.forEach((v, i) => { const p = v.audio ? (pls[v.audio] || (pls[v.audio] = makePlayer(v.audio))) : null; c3.append(sayBlock(v.ex, qrec, today() + "-" + i, p && v.t ? () => p.seg(v.t[2], v.t[3]) : null)); });
+  const fin = h("button", { class: "btn" }, "Finish quick review");
+  fin.onclick = () => { S.quickDone = S.quickDone || {}; S.quickDone[today()] = true; markActive(); save(); confetti(); toast("Nice! Your streak is safe today."); go(null); };
+  wrap.append(c1, c2, c3, fin); app.append(wrap);
+}
+
+// ---------- speaking practice ----------
+function renderPractice() {
+  pageHead("Speaking practice", "Pick a topic, talk for 1 to 2 minutes, listen to yourself, and try again.");
+  const prompts = [];
+  DATA.weeks.forEach((wk) => wk.days.forEach((d) => { prompts.push(d.speaking.prompt); if (d.partner) d.partner.questions.forEach((q) => prompts.push(q)); }));
+  S.practice = S.practice || { i: 0, rec: {} };
+  const c = h("div", { class: "card stack" }); c.style.marginTop = "14px";
+  const topic = h("div", { class: "bigq" });
+  const row = h("div", { class: "row" });
+  const next = h("button", { class: "btn ghost small" }, "New topic");
+  const slot = h("div");
+  function draw() {
+    const p = prompts[S.practice.i % prompts.length];
+    topic.textContent = p;
+    slot.innerHTML = ""; slot.append(recorderBlock(p, S.practice.rec, "p" + (S.practice.i % prompts.length)));
+  }
+  next.onclick = () => { S.practice.i = (S.practice.i + 1 + Math.floor(Math.random() * 7)) % prompts.length; save(false); draw(); };
+  row.append(next, h("span", { class: "small muted" }, prompts.length + " topics from your lessons"));
+  c.append(h("div", { class: "eyebrow" }, "Your topic"), topic, row, slot);
+  app.append(c);
+  app.append(h("div", { class: "card stack", style: "margin-top:14px" }, '<h3>Tips</h3><ul class="goals"><li>Talk for at least 1 minute. Don’t stop to think about perfect grammar.</li><li>Listen to your recording. Find 2 things to fix.</li><li>Record again and try to talk a little longer.</li></ul>'));
+  draw();
+}
+
+// ---------- achievements ----------
+function renderAch() {
+  checkAch();
+  const list = achList();
+  pageHead("Achievements", list.filter((a) => a.done).length + " of " + list.length + " badges earned. Keep going!");
+  const grid = h("div", { class: "achgrid" }); grid.style.marginTop = "16px";
+  list.forEach((a) => {
+    const el = h("div", { class: "ach" + (a.done ? " got" : "") });
+    el.innerHTML = '<span class="abadge">' + MI.star + "</span><b>" + esc(a.name) + "</b><span>" + esc(a.desc) + '</span><span class="ameter"><i style="width:' + Math.round((100 * a.have) / a.need) + '%"></i></span><small>' + (a.done ? "Earned " + esc((S.ach && S.ach[a.id]) || "") : a.have + " / " + a.need) + "</small>";
+    grid.append(el);
+  });
+  app.append(grid);
+}
+
 function topbar() {
   const hdr = $("#hdr"); hdr.hidden = false; hdr.innerHTML = "";
   const inner = h("div", { class: "hdr-in" });
   const b = h("button", { class: "burger", "aria-label": "Open menu" }, "<span></span>"); b.onclick = openMenu;
-  const brand = h("button", { class: "brand" }, '<span class="bm" aria-hidden="true"><i></i><i></i></span><span class="bt">English with Ebru<small>B1 · Two weeks · Every day</small></span>'); brand.onclick = () => go(null);
+  const brand = h("button", { class: "brand" }, '<span class="bm" aria-hidden="true"><i></i><i></i></span><span class="bt">English with Ebru<small>B1 · A little every day</small></span>'); brand.onclick = () => go(null);
   const right = h("div", { class: "hdr-right" });
   if (Sync.enabled() && Sync.user()) right.append(h("span", { class: "hello" }, "Hi, Ebru"), h("span", { class: "who" }, esc(Sync.status())));
   inner.append(b, brand, right); hdr.append(inner);
@@ -1116,7 +1422,7 @@ function renderHome() {
 
   // stats
   const sr = h("div", { class: "statrow" });
-  [[IC.flame, "var(--c-grammar)", st, st === 1 ? "day streak" : "day streak"], [IC.check, "var(--c-write)", daysDone + '<small class="muted" style="font-size:.55em"> / 12</small>', "lessons done"], [IC.words, "var(--c-listen)", words, "words learned"], [IC.target, "var(--c-speak)", open, "mistakes to fix"]].forEach(([ic, k, n, l], i) => {
+  [[IC.flame, "var(--c-grammar)", st, st === 1 ? "day streak" : "day streak"], [IC.check, "var(--c-write)", daysDone + '<small class="muted" style="font-size:.55em"> / ' + totalLessonDays() + '</small>', "lessons done"], [IC.words, "var(--c-listen)", words, "words learned"], [IC.target, "var(--c-speak)", open, "mistakes to fix"]].forEach(([ic, k, n, l], i) => {
     const t = h("div", { class: "sticon rise" }, '<span class="ic">' + ic + "</span><span><b>" + n + "</b><span>" + l + "</span></span>");
     t.style.setProperty("--k", k); t.style.setProperty("--d", i + 1); sr.append(t);
   });
@@ -1124,9 +1430,10 @@ function renderHome() {
 
   // weeks as a journey
   const wkColors = ["var(--c-listen)", "var(--c-grammar)"];
-  DATA.weeks.forEach((wk, wi) => {
+  const curW = nd ? nd.w : DATA.weeks[DATA.weeks.length - 1].week;
+  DATA.weeks.filter((wk) => wk.week === curW || wk.week === curW + 1).forEach((wk, wi) => {
     const j = h("section", { class: "journey rise" });
-    j.style.setProperty("--wk", wkColors[wi % 2]); j.style.setProperty("--d", 5 + wi);
+    j.style.setProperty("--wk", wkColors[(wk.week - 1) % 2]); j.style.setProperty("--d", 5 + wi);
     const wDone = wk.days.filter((d) => dayProgress(dkey(wk.week, d.day)) === 1).length + (sundayDone(wk.week) ? 1 : 0);
     j.append(h("div", { class: "jh" }, '<div><div class="eyebrow">Week ' + wk.week + "</div><h2>" + esc(wk.title) + '</h2></div><div class="jbar">' + wDone + ' of 7 done<i><em style="width:' + Math.round((100 * wDone) / 7) + '%"></em></i></div>'));
     const path = h("div", { class: "path" });
@@ -1144,6 +1451,7 @@ function renderHome() {
     app.append(j);
   });
 
+  if (DATA.weeks.length > 2) { const all = h("div", { class: "allweeks" }); const b = h("button", { class: "btn ghost" }, "See the whole course (" + DATA.weeks.length + " weeks)"); b.onclick = () => go({ tool: "map" }); all.append(b); app.append(all); }
   // quick links
   const due = dueCards().length;
   const q = h("div", { class: "quick" });
@@ -1570,7 +1878,7 @@ function renderProgress() {
   const strong = cards.filter((c) => c.box >= 4).length, learning = cards.filter((c) => c.box >= 2 && c.box < 4).length;
   const open = S.mistakes.filter((m) => !m.fixed).length, fixed = S.mistakes.length - open;
   const stats = h("div", { class: "stats" }); stats.style.marginTop = "14px";
-  stats.innerHTML = '<div class="stat"><b>' + streak() + '</b><span>day streak</span></div><div class="stat"><b>' + daysDone + '<span class="small muted"> / 12</span></b><span>lesson days done</span></div><div class="stat"><b>' + cards.length + '</b><span>words (' + strong + " strong, " + learning + ' learning)</span></div><div class="stat"><b>' + fixed + '<span class="small muted"> / ' + S.mistakes.length + "</span></b><span>mistakes fixed</span></div>";
+  stats.innerHTML = '<div class="stat"><b>' + streak() + '</b><span>day streak</span></div><div class="stat"><b>' + daysDone + '<span class="small muted"> / ' + totalLessonDays() + '</span></b><span>lesson days done</span></div><div class="stat"><b>' + cards.length + '</b><span>words (' + strong + " strong, " + learning + ' learning)</span></div><div class="stat"><b>' + fixed + '<span class="small muted"> / ' + S.mistakes.length + "</span></b><span>mistakes fixed</span></div>";
   app.append(stats);
   const areas = {}; S.mistakes.filter((m) => !m.fixed).forEach((m) => (areas[m.area] = (areas[m.area] || 0) + 1));
   const top = Object.entries(areas).sort((a, b) => b[1] - a[1]);
@@ -1635,6 +1943,10 @@ function renderSettings() {
   const seg = h("div", { class: "seg" });
   [[0.9, "Small"], [1, "Normal"], [1.15, "Large"], [1.3, "Extra large"]].forEach(([v, l]) => { const b = h("button", { class: (S.settings.scale || 1) === v ? "on" : "" }, l); b.onclick = () => { S.settings.scale = v; save(); applySettings(); renderSettings(); }; seg.append(b); });
   c.append(seg);
+  c.append(h("h3", null, "Light or dark"));
+  const seg2 = h("div", { class: "seg" });
+  [["auto", "Same as my phone"], ["light", "Light"], ["dark", "Dark"]].forEach(([v, l]) => { const b = h("button", { class: (S.settings.theme || "auto") === v ? "on" : "" }, l); b.onclick = () => { S.settings.theme = v; save(); applySettings(); renderSettings(); }; seg2.append(b); });
+  c.append(seg2);
   c.append(h("h3", null, "Microphone"));
   c.append(h("p", null, SR ? "Speech check is available in this browser." : "Speech check is not available in this browser. Use Chrome (Android, Windows, Mac) or Safari (iPhone, Mac). Recording still works."));
   const t = h("button", { class: "btn ghost small" }, "Test my microphone");
@@ -1776,8 +2088,13 @@ function render() {
   const v = S.opened;
   const kind = Sync.enabled() && !Sync.ready() ? "splash" : (Sync.enabled() && !Sync.user() && !offlineOK() && !(v && v.tool === "account" && v.recover)) ? "gate" : "app";
   if (kind !== lastKind) { lastKind = kind; window.scrollTo(0, 0); }
+  document.body.classList.toggle("side", kind === "app");
   if (kind === "splash") return renderSplash();
   if (kind === "gate") return renderGate();
+  renderApp(v);
+  drawMenu();
+}
+function renderApp(v) {
   if (!v) return renderHome();
   if (v.tool === "words") return renderWords();
   if (v.tool === "mistakes") return renderMistakes();
@@ -1785,6 +2102,12 @@ function render() {
   if (v.tool === "notes") return renderNotes(v);
   if (v.tool === "settings") return renderSettings();
   if (v.tool === "account") return renderAccount(v);
+  if (v.tool === "map") return renderMap();
+  if (v.tool === "grammar") return renderGrammarBook();
+  if (v.tool === "library") return renderLibrary();
+  if (v.tool === "quick") return renderQuick();
+  if (v.tool === "practice") return renderPractice();
+  if (v.tool === "ach") return renderAch();
   if (v.d === 7 && DATA.weeks.find((x) => x.week === v.w)) return renderSunday(v.w);
   if (findDay(v.w, v.d)) return renderDay(v.w, v.d);
   S.opened = null; renderHome();
