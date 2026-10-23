@@ -570,6 +570,15 @@ body { background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%) fixed;
 .glosspop { position: absolute; z-index: 4; background: var(--ink); color: var(--bg); border-radius: 12px; padding: 8px 14px; display: grid; gap: 2px; box-shadow: var(--lift); animation: fadein .15s ease; font-size: .95em; }
 .glosspop .gw { font-size: .78em; opacity: .7; font-family: var(--font-display); }
 .glosspop .gt { font-weight: 700; }
+
+/* locked lessons */
+.lk { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.node.locked .dotn { opacity: .55; border-style: solid; }
+.node.locked .nl { opacity: .55; }
+.node.locked:hover .dotn { transform: none; box-shadow: none; border-color: var(--line); color: var(--muted); }
+.maprow.locked { opacity: .6; }
+.maprow.locked:hover { transform: none; box-shadow: none; border-color: var(--line); }
+.lockedbtn { opacity: .6; }
 </style>
 </head>
 <body>
@@ -844,69 +853,61 @@ function sayBlock(text, rec, id, playFn) {
   if (rec[id]) heard.innerHTML = "Your best: <b>" + rec[id].best + "%</b>. Tap the microphone to try again.";
   return box;
 }
-// Free speaking recorder with live transcript
+// Speaking recorder: record, stop, play back. No speech recognition.
 function recorderBlock(promptText, rec, id) {
   const box = h("div", { class: "rec" });
   const btn = h("button", { class: "btn recbtn" }, '<span class="dotr"></span><span>Record my answer</span>');
   const timer = h("span", { class: "small muted" });
   const live = h("div", { class: "heardtxt" });
   const takes = h("div", { class: "takes" });
-  box.append(h("div", { class: "row" }), live, takes);
-  box.firstChild.append(btn, timer);
-  let mr = null, chunks = [], t0 = 0, tick = null, recog = null, transcript = "", stopping = false;
+  const row = h("div", { class: "row" }); row.append(btn, timer);
+  box.append(row, live, takes);
+  let mr = null, stream = null, chunks = [], t0 = 0, tick = null;
   const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
-  if (!canRecord) { btn.disabled = true; live.textContent = "This browser can't record. Use Chrome or Safari on your phone or computer."; }
-  function startRecog() {
-    if (!SR) return;
-    try {
-      recog = new SR(); recog.lang = "en-US"; recog.continuous = true; recog.interimResults = true;
-      let base = transcript;
-      recog.onresult = (e) => { let fin = "", inter = ""; for (let i = 0; i < e.results.length; i++) { if (e.results[i].isFinal) fin += e.results[i][0].transcript + " "; else inter += e.results[i][0].transcript; } transcript = (base + " " + fin).trim(); live.textContent = (transcript + " " + inter).trim(); };
-      recog.onend = () => { if (mr && mr.state === "recording" && !stopping) startRecog(); };
-      recog.onerror = () => {};
-      recog.start();
-    } catch (e) { recog = null; }
+  if (!canRecord) { btn.disabled = true; live.textContent = "This browser can't record. Please use Chrome or Safari, and make sure the page address starts with https."; }
+  function pickType() {
+    const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", "audio/ogg;codecs=opus"];
+    for (const t of types) { try { if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
+    return "";
   }
   async function start() {
     stopAll();
-    let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch (e) { live.textContent = speechErrMsg("not-allowed"); return; }
-    chunks = []; transcript = ""; stopping = false;
-    try { mr = new MediaRecorder(stream); } catch (e) { live.textContent = "Recording didn't start. Try again."; return; }
-    mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch (e) {
+      live.innerHTML = e && e.name === "NotAllowedError" ? "The microphone is blocked. Allow the microphone for this site in your browser settings, then tap <b>Record</b> again." : e && e.name === "NotFoundError" ? "No microphone was found on this device." : "The microphone didn't start. Close other apps that use it, then try again.";
+      return;
+    }
+    chunks = [];
+    const type = pickType();
+    try { mr = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream); }
+    catch (e) { stream.getTracks().forEach((t) => t.stop()); live.textContent = "Recording didn't start. Please try again."; return; }
+    mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
     mr.onstop = () => {
       stream.getTracks().forEach((t) => t.stop());
-      const secs = Math.round((Date.now() - t0) / 1000);
-      const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+      clearInterval(tick); timer.textContent = "";
+      btn.classList.remove("live"); btn.lastChild.textContent = "Record again";
+      const secs = Math.max(1, Math.round((Date.now() - t0) / 1000));
+      if (!chunks.length) { live.textContent = "Nothing was recorded. Please try again."; return; }
+      const blob = new Blob(chunks, { type: mr.mimeType || type || "audio/webm" });
       const url = URL.createObjectURL(blob);
-      const words = (transcript.match(/[A-Za-z']+/g) || []).length;
       const take = h("div", { class: "take" });
-      take.innerHTML = '<div class="small"><b>Take ' + (takes.children.length + 1) + "</b> · " + secs + " seconds" + (SR ? " · about " + words + " words" : "") + "</div>";
-      const au = h("audio", { controls: "", src: url, preload: "metadata" });
-      take.append(au);
-      if (transcript) take.append(h("div", { class: "heardtxt" }, "I heard: “" + esc(transcript) + "”"));
+      take.innerHTML = '<div class="small"><b>Take ' + (takes.children.length + 1) + "</b> · " + secs + " seconds</div>";
+      take.append(h("audio", { controls: "", src: url, preload: "metadata", playsinline: "" }));
       takes.prepend(take);
       live.textContent = "Listen to yourself. Find 2 things to fix, then record again.";
       const prev = rec[id] || { takes: 0, maxSecs: 0 };
-      rec[id] = { takes: prev.takes + 1, maxSecs: Math.max(prev.maxSecs, secs), lastText: transcript || prev.lastText || "" };
+      rec[id] = { takes: prev.takes + 1, maxSecs: Math.max(prev.maxSecs, secs) };
       markActive(); save();
     };
-    mr.start(); t0 = Date.now();
+    try { mr.start(1000); } catch (e) { try { mr.start(); } catch (e2) { stream.getTracks().forEach((t) => t.stop()); live.textContent = "Recording didn't start. Please try again."; return; } }
+    t0 = Date.now();
     btn.classList.add("live"); btn.lastChild.textContent = "Stop";
-    live.textContent = SR ? "Speak now…" : "Recording…";
+    live.textContent = "Recording… Tap Stop when you finish.";
     tick = setInterval(() => { timer.textContent = Math.round((Date.now() - t0) / 1000) + "s"; }, 500);
-    startRecog();
   }
-  function stop() {
-    stopping = true;
-    clearInterval(tick); timer.textContent = "";
-    btn.classList.remove("live"); btn.lastChild.textContent = "Record again";
-    if (recog) { try { recog.stop(); } catch (e) {} }
-    setTimeout(() => { if (mr && mr.state === "recording") mr.stop(); }, 350);
-  }
+  function stop() { if (mr && mr.state !== "inactive") { try { mr.stop(); } catch (e) {} } }
   btn.onclick = () => (mr && mr.state === "recording" ? stop() : start());
-  if (rec[id] && rec[id].takes) live.innerHTML = "You recorded <b>" + rec[id].takes + "</b> " + (rec[id].takes === 1 ? "take" : "takes") + " before (the longest: " + rec[id].maxSecs + " seconds). Recordings stay only until you close the page.";
+  if (rec[id] && rec[id].takes) live.innerHTML = "You recorded <b>" + rec[id].takes + "</b> " + (rec[id].takes === 1 ? "take" : "takes") + " before. Recordings are kept only until you close the page.";
   return box;
 }
 
@@ -1062,7 +1063,22 @@ function nextDay() {
   }
   return null;
 }
-function go(view) { stopAll(); closeMenu(); S.opened = view; save(false); render(); window.scrollTo(0, 0); }
+const LOCK = '<svg viewBox="0 0 24 24" class="lk"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+function lessonOrder() { const o = []; DATA.weeks.forEach((wk) => { wk.days.forEach((x) => o.push([wk.week, x.day])); o.push([wk.week, 7]); }); return o; }
+function itemDone(w, d) { return d === 7 ? sundayDone(w) : dayProgress(dkey(w, d)) === 1; }
+function isUnlocked(w, d) {
+  const o = lessonOrder(), i = o.findIndex((x) => x[0] === w && x[1] === d);
+  if (i <= 0) return true;
+  if (d === 7 ? (S.sundays[w] && Object.keys(S.sundays[w].ans || {}).length) : dayProgress(dkey(w, d)) > 0) return true;
+  return itemDone(o[i - 1][0], o[i - 1][1]);
+}
+function lockMsg(w, d) {
+  const o = lessonOrder(), i = o.findIndex((x) => x[0] === w && x[1] === d), p = o[i - 1];
+  const name = p[1] === 7 ? "the Week " + p[0] + " Sunday review" : "Week " + p[0] + ", " + DAYNAMES[p[1] - 1];
+  return "Locked. Finish " + name + " first.";
+}
+function go(view) {
+  if (view && view.w != null && view.d != null && !isUnlocked(view.w, view.d)) { toast(lockMsg(view.w, view.d)); return; } stopAll(); closeMenu(); S.opened = view; save(false); render(); window.scrollTo(0, 0); }
 function openMenu() { if (document.body.classList.contains("side") && window.innerWidth >= 1200) return; drawMenu(); $("#drawer").classList.add("open"); $("#drawer").setAttribute("aria-hidden", "false"); $("#scrim").hidden = false; setTimeout(() => { const f = $("#drawer .navi"); f && f.focus(); }, 50); }
 function closeMenu() { $("#drawer").classList.remove("open"); $("#drawer").setAttribute("aria-hidden", "true"); $("#scrim").hidden = true; }
 $("#scrim").onclick = closeMenu;
@@ -1097,7 +1113,7 @@ function coursePct() { const total = DATA.weeks.length * 7; const done = lessons
 function achList() {
   const words = Object.keys(S.cards).length, fixed = S.mistakes.filter((m) => m.fixed).length, bs = bestStreak(), ld = lessonsDone();
   let clear = 0, writes = 0;
-  Object.values(S.days).forEach((d) => { Object.values(d.say || {}).forEach((x) => { if (x.best >= 85) clear++; }); writes += (d.submissions || []).length; });
+  Object.values(S.days).forEach((d) => { Object.values(d.rec || {}).forEach((x) => { clear += x.takes || 0; }); writes += (d.submissions || []).length; });
   const perfect = DATA.weeks.some((wk) => { const st = S.sundays[wk.week]; if (!st) return false; return wk.sunday.quiz.every((q, i) => st.ans["sq" + i] === q.answer); });
   const list = [
     ["first", "First step", "Finish your first lesson", ld, 1],
@@ -1109,7 +1125,7 @@ function achList() {
     ["w300", "300 words", "Learn 300 words", words, 300],
     ["f10", "Mistake fixer", "Fix 10 mistakes", fixed, 10],
     ["f50", "Mistake master", "Fix 50 mistakes", fixed, 50],
-    ["clear", "Crystal clear", "Get 85% or more on 20 spoken sentences", clear, 20],
+    ["clear", "Speaker", "Record 20 speaking answers", clear, 20],
     ["writer", "Writer", "Submit 10 writing tasks", writes, 10],
     ["perfect", "Perfect test", "Get every answer right in a Sunday test", perfect ? 1 : 0, 1],
     ["notes", "Note taker", "Write 5 notes", S.notes.length, 5],
@@ -1196,11 +1212,13 @@ function renderMap() {
     const list = h("div", { class: "maplist" });
     wk.days.forEach((d) => {
       const k = dkey(wk.week, d.day), p = dayProgress(k), isNext = nd && nd.w === wk.week && nd.d === d.day;
-      const b = h("button", { class: "maprow" + (p === 1 ? " done" : "") + (isNext ? " next" : "") }, '<span class="mdot">' + (p === 1 ? "✓" : d.dayName.slice(0, 3)) + '</span><span class="mt"><b>' + esc(d.title) + "</b><small>" + esc(d.grammar.title) + '</small></span><span class="ms">' + (p === 1 ? "Done" : isNext ? "Next" : p > 0 ? Math.round(p * 7) + "/7" : "") + "</span>");
+      const lk = !isUnlocked(wk.week, d.day);
+      const b = h("button", { class: "maprow" + (p === 1 ? " done" : "") + (isNext ? " next" : "") + (lk ? " locked" : "") }, '<span class="mdot">' + (p === 1 ? "✓" : lk ? LOCK : d.dayName.slice(0, 3)) + '</span><span class="mt"><b>' + esc(d.title) + "</b><small>" + esc(d.grammar.title) + '</small></span><span class="ms">' + (p === 1 ? "Done" : isNext ? "Next" : p > 0 ? Math.round(p * 7) + "/7" : lk ? "Locked" : "") + "</span>");
       b.onclick = () => go({ w: wk.week, d: d.day }); list.append(b);
     });
     const sd = sundayDone(wk.week), isNextS = nd && nd.w === wk.week && nd.d === 7;
-    const s = h("button", { class: "maprow sun" + (sd ? " done" : "") + (isNextS ? " next" : "") }, '<span class="mdot">' + (sd ? "✓" : "★") + '</span><span class="mt"><b>Review and test</b><small>Sunday</small></span><span class="ms">' + (sd ? "Done" : isNextS ? "Next" : "") + "</span>");
+    const lkS = !isUnlocked(wk.week, 7);
+    const s = h("button", { class: "maprow sun" + (sd ? " done" : "") + (isNextS ? " next" : "") + (lkS ? " locked" : "") }, '<span class="mdot">' + (sd ? "✓" : lkS ? LOCK : "★") + '</span><span class="mt"><b>Review and test</b><small>Sunday</small></span><span class="ms">' + (sd ? "Done" : isNextS ? "Next" : lkS ? "Locked" : "") + "</span>");
     s.onclick = () => go({ w: wk.week, d: 7 }); list.append(s);
     c.append(list); app.append(c);
   });
@@ -1277,12 +1295,13 @@ function renderQuick() {
   if (!open.length) c2.append(h("p", { class: "muted" }, "No mistakes to fix. Great job!"));
   else shuffle(open, open.length + new Date().getDate()).slice(0, 3).forEach((m) => c2.append(retryBlock(m)));
   const c3 = h("div", { class: "card stack" });
-  c3.append(h("h2", null, "3. Say 2 sentences"));
+  c3.append(h("h2", null, "3. Listen and repeat"));
+  c3.append(h("p", { class: "muted" }, "Play each sentence, then say it out loud two times."));
   const say = shuffle(learned, 99 + new Date().getDate()).slice(0, 2);
   const qrec = (S.quickSay = S.quickSay || {});
   const pls = {};
   if (!say.length) c3.append(h("p", { class: "muted" }, "Finish a lesson first, then come back."));
-  say.forEach((v, i) => { const p = v.audio ? (pls[v.audio] || (pls[v.audio] = makePlayer(v.audio))) : null; c3.append(sayBlock(v.ex, qrec, today() + "-" + i, p && v.t ? () => p.seg(v.t[2], v.t[3]) : null)); });
+  say.forEach((v) => { const p = v.audio ? (pls[v.audio] || (pls[v.audio] = makePlayer(v.audio))) : null; const row = h("div", { class: "word" }); row.append(p && v.t ? miniBtn(() => p.seg(v.t[2], v.t[3]), "Play") : h("span"), h("div", { class: "ex" }, esc(v.ex))); c3.append(row); });
   const fin = h("button", { class: "btn" }, "Finish quick review");
   fin.onclick = () => { S.quickDone = S.quickDone || {}; S.quickDone[today()] = true; markActive(); save(); confetti(); toast("Nice! Your streak is safe today."); go(null); };
   wrap.append(c1, c2, c3, fin); app.append(wrap);
@@ -1450,10 +1469,11 @@ function renderHome() {
     const nodes = wk.days.map((d) => ({ d: d.day, nd: d.dayName.slice(0, 3), title: d.title, p: dayProgress(dkey(wk.week, d.day)) })).concat([{ d: 7, nd: "Sun", title: "Review and test", p: sundayDone(wk.week) ? 1 : 0, sun: true }]);
     nodes.forEach((x) => {
       const isNext = nd && nd.w === wk.week && nd.d === x.d;
-      const cls = "node" + (x.p === 1 ? " done" : isNext ? " next" : x.p > 0 ? " part" : "") + (x.sun ? " sun" : "");
+      const locked = !isUnlocked(wk.week, x.d);
+      const cls = "node" + (x.p === 1 ? " done" : isNext ? " next" : x.p > 0 ? " part" : "") + (x.sun ? " sun" : "") + (locked ? " locked" : "");
       const b = h("button", { class: cls, "aria-label": "Week " + wk.week + " " + x.nd + ": " + x.title });
       if (x.p > 0 && x.p < 1) b.style.setProperty("--p", Math.round(x.p * 100) + "%");
-      b.innerHTML = (isNext ? '<span class="here">You are here</span>' : "") + '<span class="dotn">' + (x.p === 1 ? "✓" : x.sun ? "★" : x.nd) + '</span><span class="txt"><span class="nd">' + x.nd + '</span><span class="nl">' + esc(x.title) + "</span></span>";
+      b.innerHTML = (isNext ? '<span class="here">You are here</span>' : "") + '<span class="dotn">' + (x.p === 1 ? "✓" : locked ? LOCK : x.sun ? "★" : x.nd) + '</span><span class="txt"><span class="nd">' + x.nd + '</span><span class="nl">' + esc(x.title) + "</span></span>";
       b.onclick = () => go({ w: wk.week, d: x.d });
       path.append(b);
     });
@@ -1522,7 +1542,7 @@ function renderDay(w, dnum) {
   const all = []; DATA.weeks.forEach((wk) => { wk.days.forEach((x) => all.push([wk.week, x.day])); all.push([wk.week, 7]); });
   const idx = all.findIndex((x) => x[0] === w && x[1] === dnum);
   if (idx > 0) { const b = h("button", { class: "btn ghost small" }, "← Previous day"); b.onclick = () => go({ w: all[idx - 1][0], d: all[idx - 1][1] }); nav.append(b); } else nav.append(h("span"));
-  if (idx < all.length - 1) { const b = h("button", { class: "btn ghost small" }, "Next day →"); b.onclick = () => go({ w: all[idx + 1][0], d: all[idx + 1][1] }); nav.append(b); }
+  if (idx < all.length - 1) { const nl = !isUnlocked(all[idx + 1][0], all[idx + 1][1]); const b = h("button", { class: "btn ghost small" + (nl ? " lockedbtn" : "") }, nl ? "Next day (locked)" : "Next day →"); b.onclick = () => go({ w: all[idx + 1][0], d: all[idx + 1][1] }); nav.append(b); }
   app.append(nav);
 }
 function showDayDone(w, dnum) {
@@ -1591,7 +1611,7 @@ function buildListen(body, d, k, ds, ctx) {
     if (ds.ans[id] != null) check(ds.ans[id], false);
     p2.append(row);
   });
-  const p3 = part("Read and shadow", "Listen 3", "Read while you listen. Then tap ▶ on a line, and tap the <b>microphone</b> to say it yourself. You'll see which words were clear.");
+  const p3 = part("Read and shadow", "Listen 3", "Read while you listen. Tap ▶ on any line to hear it again, and repeat it out loud to yourself.");
   const sc = h("div", { class: "script" });
   ds.say = ds.say || {};
   let openSay = null;
@@ -1601,13 +1621,6 @@ function buildListen(body, d, k, ds, ctx) {
     const tt = A.listenT && A.listenT[i];
     const acts = h("span", { class: "acts" });
     if (tt) acts.append(miniBtn(() => pl.seg(tt[0], tt[1]), "Play this line"));
-    acts.append(miniBtn(() => {
-      if (openSay) openSay.remove();
-      openSay = h("div", { class: "heard" });
-      openSay.append(sayBlock(l.t, ds.say, "line" + i, tt ? () => pl.seg(tt[0], tt[1]) : null));
-      el.append(openSay);
-      openSay.querySelector(".mini.mic").click();
-    }, "Say this line", "mic", MIC));
     el.append(acts); sc.append(el);
     return el;
   });
@@ -1620,7 +1633,7 @@ function buildWords(body, d, k, ds, ctx) {
   const A = d.audio || {};
   const pl = A.vocab ? makePlayer(A.vocab) : null;
   ds.say = ds.say || {};
-  const p1 = part("Learn 8 new phrases", null, "Tap ▶ and listen. Then tap the microphone and say the example sentence.");
+  const p1 = part("Learn 8 new phrases", null, "Tap ▶ and listen. Then say the phrase and the example out loud.");
   const list = h("div", { class: "words" });
   d.vocab.forEach((v, i) => {
     const el = h("div", { class: "word" });
@@ -1631,7 +1644,7 @@ function buildWords(body, d, k, ds, ctx) {
     exRow.style.gap = "8px"; exRow.style.flexWrap = "nowrap"; exRow.style.alignItems = "flex-start";
     const exTxt = h("div", { class: "ex" }, esc(v.ex)); exTxt.style.flex = "1";
     let sb = null;
-    exRow.append(exTxt, miniBtn(() => { if (sb) sb.remove(); sb = sayBlock(v.ex, ds.say, "vx" + i, t && pl ? () => pl.seg(t[2], t[3]) : null); inner.append(sb); sb.querySelector(".mini.mic").click(); }, "Say the example", "mic", MIC));
+    exRow.append(exTxt);
     inner.append(exRow); el.append(inner); list.append(el);
   });
   p1.append(list);
@@ -1737,10 +1750,6 @@ function pickSayLines(d) {
 function buildSpeak(body, d, k, ds, ctx) {
   const S2 = d.speaking, A = d.audio || {};
   ds.say = ds.say || {}; ds.rec = ds.rec || {};
-  const lines = pickSayLines(d);
-  const pl = A.listen ? makePlayer(A.listen) : null;
-  const p0 = part("Say it like Elif", "Warm up", "Listen to each sentence, then tap the microphone and say it. Try to get 85% or more.");
-  lines.forEach((x) => { const tt = A.listenT && A.listenT[x.i]; p0.append(sayBlock(x.l.t, ds.say, "sp" + x.i, tt && pl ? () => pl.seg(tt[0], tt[1]) : null)); });
   const p1 = part(S2.prompt, "Your turn", "Read the plan and the sentence starters. Then press <b>Record</b> and talk for 1 to 2 minutes. Listen to yourself and record again.");
   p1.append(h("ul", { class: "goals" }, S2.steps.map((x) => "<li>" + esc(x) + "</li>").join("")));
   p1.append(h("div", { class: "starters" }, S2.starters.map((x) => "<span>" + esc(x) + "</span>").join("")));
@@ -1752,14 +1761,12 @@ function buildSpeak(body, d, k, ds, ctx) {
   const show = h("button", { class: "btn ghost small" }, "Show the model answer");
   show.onclick = () => { model.hidden = false; show.hidden = true; };
   p2.append(show, model);
-  body.append(p0, p1, p2);
+  body.append(p1, p2);
   if (d.partner) {
     const bp = h("div", { class: "bonus" });
-    bp.innerHTML = "<h3>Saturday bonus: talk about your week</h3><p>Answer each question out loud. Record your favorite two answers.</p><ol>" + d.partner.questions.map((q) => "<li>" + esc(q) + "</li>").join("") + "</ol>";
-    bp.append(recorderBlock("bonus", ds.rec, "bonus"));
+    bp.innerHTML = "<h3>Saturday bonus: talk about your week</h3><p>Answer each question out loud. Take your time.</p><ol>" + d.partner.questions.map((q) => "<li>" + esc(q) + "</li>").join("") + "</ol>";
     body.append(bp);
   }
-  ctx.score = () => { const ok = lines.filter((x) => ds.say["sp" + x.i] && ds.say["sp" + x.i].best >= 85).length; return [ok, lines.length, lines.length]; };
 }
 
 // ---------- writing + checker ----------
@@ -1935,7 +1942,7 @@ function renderProgress() {
       const ds = S.days[dkey(wk.week, d.day)] || {};
       const steps = ds.steps ? Object.keys(ds.steps).length : 0;
       let c2 = 0, t2 = 0; Object.values(ds.steps || {}).forEach((s) => { if (s && s.score && s !== ds.steps.speak) { c2 += s.score[0]; t2 += s.score[1]; } });
-      const says = Object.values(ds.say || {}); const sayAvg = says.length ? Math.round(says.reduce((a, x) => a + x.best, 0) / says.length) + "%" : "–";
+      const recs = Object.values(ds.rec || {}).reduce((n, x) => n + (x.takes || 0), 0); const sayAvg = recs ? recs + (recs === 1 ? " take" : " takes") : "\u2013";
       const wr = ds.submitted ? (ds.submitted.error ? "sent" : ds.submitted.matches.length + " notes") : "–";
       rows += "<tr><td>" + d.dayName.slice(0, 3) + '</td><td class="n">' + steps + '/7</td><td class="n">' + (t2 ? c2 + "/" + t2 : "–") + '</td><td class="n">' + sayAvg + '</td><td class="n">' + wr + "</td></tr>";
     });
@@ -1943,7 +1950,7 @@ function renderProgress() {
     rows += '<tr><td>Sun</td><td class="n">' + (st && st.done ? "done" : "–") + '</td><td class="n">test ' + qs + "</td><td></td><td></td></tr></tbody></table>";
     tw.innerHTML = rows; c.append(tw); app.append(c);
   });
-  app.append(h("p", { class: "small muted" }, "Speaking = your best clarity score on the read-aloud sentences. Writing = notes from the online checker."));
+  app.append(h("p", { class: "small muted" }, "Speaking = how many times you recorded yourself. Writing = notes from the online checker."));
 }
 function renderNotes(v) {
   const n = v.id ? S.notes.find((x) => x.id === v.id) : null;
@@ -1990,12 +1997,6 @@ function renderSettings() {
   const seg2 = h("div", { class: "seg" });
   [["auto", "Same as my phone"], ["light", "Light"], ["dark", "Dark"]].forEach(([v, l]) => { const b = h("button", { class: (S.settings.theme || "auto") === v ? "on" : "" }, l); b.onclick = () => { S.settings.theme = v; save(); applySettings(); renderSettings(); }; seg2.append(b); });
   c.append(seg2);
-  c.append(h("h3", null, "Microphone"));
-  c.append(h("p", null, SR ? "Speech check is available in this browser." : "Speech check is not available in this browser. Use Chrome (Android, Windows, Mac) or Safari (iPhone, Mac). Recording still works."));
-  const t = h("button", { class: "btn ghost small" }, "Test my microphone");
-  const tbox = h("div");
-  t.onclick = () => { tbox.innerHTML = ""; const sb = sayBlock("Hello, my name is Ebru.", {}, "test", null); tbox.append(sb); sb.querySelector(".mini.mic").click(); };
-  c.append(t, tbox);
   app.append(c);
   const c2 = h("div", { class: "card stack" }); c2.style.marginTop = "14px";
   c2.append(h("h3", null, "Start over"));
@@ -2138,6 +2139,7 @@ function render() {
   drawMenu();
 }
 function renderApp(v) {
+  if (v && v.w != null && v.d != null && !isUnlocked(v.w, v.d)) { S.opened = null; v = null; }
   if (!v) return renderHome();
   if (v.tool === "words") return renderWords();
   if (v.tool === "mistakes") return renderMistakes();
