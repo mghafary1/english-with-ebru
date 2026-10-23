@@ -186,6 +186,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 input.gap, .typein input, .field input { font: inherit; border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--surface); color: var(--ink); min-width: 0; }
 .typein input { flex: 1 1 180px; }
 input.gap { width: 9em; padding: 2px 8px; }
+.opt.picked { border-color: var(--lake); background: color-mix(in srgb, var(--lake) 14%, var(--surface)); color: var(--ink); opacity: 1; font-weight: 700; }
 .gapwrap { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin: 2px 0; }
 .chk { flex: none; width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; padding: 0; border: 1.5px solid color-mix(in srgb, var(--lake) 45%, var(--line)); background: color-mix(in srgb, var(--lake) 10%, var(--surface)); color: var(--lake); transition: background .15s, color .15s, transform .1s; }
 .chk svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
@@ -1288,7 +1289,7 @@ function retryBlock(m, onChange) {
 // ---------- exercise widgets ----------
 function mcqBlock(items, rec, prefix, k, area, opts) {
   opts = opts || {};
-  const wrap = h("div");
+  const wrap = h("div"); const reveals = [];
   items.forEach((it, i) => {
     const id = prefix + i;
     const q = h("div", { class: "q" });
@@ -1307,6 +1308,24 @@ function mcqBlock(items, rec, prefix, k, area, opts) {
         fb.innerHTML = (s2.w.length ? "<b>Yes, that’s it!</b> " : "<b>Right!</b> ") + esc(it.why || "");
         if (it.q.includes("___")) q.querySelector(".blank").textContent = options[correct];
       } else if (s2.w.length) { fb.hidden = false; fb.className = "fb no"; fb.innerHTML = "<b>Not quite.</b> Try another answer."; }
+    }
+    if (opts.test) {
+      // test mode: one pick, no feedback until she checks her answers at the end
+      const show = () => {
+        const a = rec[id]; const ok = a === correct;
+        btns.forEach((b, bi) => { b.disabled = true; b.classList.remove("picked"); b.classList.toggle("right", bi === correct); b.classList.toggle("wrong", bi === a && !ok); });
+        fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "no");
+        fb.innerHTML = (ok ? "<b>Right!</b> " : "<b>Not quite.</b> Answer: " + esc(options[correct]) + ". ") + esc(it.why || "");
+        if (it.q.includes("___")) q.querySelector(".blank").textContent = options[correct];
+        return ok;
+      };
+      const pick = (oi) => { btns.forEach((b, bi) => { b.disabled = true; b.classList.toggle("picked", bi === oi); }); };
+      btns.forEach((b, oi) => { b.onclick = () => { rec[id] = oi; markActive(); save(); pick(oi); if (opts.onAnswer) opts.onAnswer(); }; });
+      reveals.push((fresh) => { if (rec[id] == null) return; const ok = show(); if (fresh && !ok) logMistake(k, area, it.q, options[rec[id]], options[correct], it.why, { kind: "choice", opts: options }); });
+      q.append(row, fb);
+      if (rec[id] != null) pick(rec[id]);
+      wrap.append(q);
+      return;
     }
     function answer(oi, fresh) {
       const s2 = st(); const ok = oi === correct;
@@ -1328,7 +1347,7 @@ function mcqBlock(items, rec, prefix, k, area, opts) {
     wrap.append(q);
   });
   const score = () => { let c = 0, t = 0; items.forEach((it, i) => { const a = rec[prefix + i]; if (a != null) { t++; const correct = it.tf ? (it.answer ? 0 : 1) : it.answer; if (a === correct) c++; } }); return [c, t, items.length]; };
-  return { el: wrap, score };
+  return { el: wrap, score, reveal: (fresh) => reveals.forEach((r) => r(fresh)) };
 }
 // Fill-in box that can be corrected: first try counts for the score; wrong answers stay editable;
 // after 2 wrong tries a "Show answer" button appears. Locks when right or when the answer is shown.
@@ -2472,9 +2491,18 @@ function renderSunday(w) {
   const c1 = h("div", { class: "card stack" });
   c1.append(h("h2", null, "1. Week " + w + " test"));
   const res = h("p", { class: "result" });
-  const m = mcqBlock(wk.sunday.quiz, st.ans, "sq", "s" + w, "Test", { onAnswer: () => upd() });
-  function upd() { const s = m.score(); res.textContent = s[1] === s[2] ? "Your score: " + s[0] + " / " + s[2] + (s[0] >= 8 ? " — excellent!" : s[0] >= 6 ? " — good." : " — review this week's grammar again.") : s[1] + " of " + s[2] + " answered"; }
-  upd(); c1.append(m.el, res);
+  c1.append(h("p", { class: "muted small" }, "Choose carefully: you can’t change an answer. When you finish, check your answers."));
+  const m = mcqBlock(wk.sunday.quiz, st.ans, "sq", "s" + w, "Test", { test: true, onAnswer: () => upd() });
+  const chk = h("button", { class: "btn" }, "Check my answers");
+  chk.onclick = () => { st.revealed = today(); markActive(); save(); m.reveal(true); upd(); };
+  function upd() {
+    const s = m.score(), all = s[1] === s[2];
+    chk.hidden = !all || !!st.revealed;
+    res.textContent = st.revealed ? "Your score: " + s[0] + " / " + s[2] + (s[0] >= 8 ? " — excellent!" : s[0] >= 6 ? " — good." : " — review this week's grammar again.") : all ? "All done! Now check your answers." : s[1] + " of " + s[2] + " answered";
+  }
+  if (st.revealed === undefined && m.score()[1] === m.score()[2]) st.revealed = today(); // finished before this change
+  if (st.revealed) m.reveal(false);
+  upd(); c1.append(m.el, res, chk); chk.style.justifySelf = "start";
   const c2 = h("div", { class: "card stack" });
   c2.append(h("h2", null, "2. Your mistakes test"));
   const weekM = S.mistakes.filter((x) => !x.fixed && (x.day.startsWith(w + "-") || x.day === "s" + w) && x.kind !== "info");
