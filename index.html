@@ -189,6 +189,7 @@ input.gap { width: 9em; padding: 2px 8px; }
 input.gap.right { border-color: var(--good); background: var(--good-soft); }
 input.gap.wrong { border-color: var(--bad); background: var(--bad-soft); }
 .gapline { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.gapcheck { padding: 5px 12px; }
 .blank { display: inline-block; min-width: 4em; border-bottom: 2px solid var(--muted); text-align: center; color: var(--lake); font-weight: 700; }
 .result { font-family: var(--font-display); font-weight: 600; }
 
@@ -1295,6 +1296,49 @@ function mcqBlock(items, rec, prefix, k, area, opts) {
   const score = () => { let c = 0, t = 0; items.forEach((it, i) => { const a = rec[prefix + i]; if (a != null) { t++; const correct = it.tf ? (it.answer ? 0 : 1) : it.answer; if (a === correct) c++; } }); return [c, t, items.length]; };
   return { el: wrap, score };
 }
+// Fill-in box that can be corrected: first try counts for the score; wrong answers stay editable;
+// after 2 wrong tries a "Show answer" button appears. Locks when right or when the answer is shown.
+function fixableInput(o) {
+  // o: { inp, btn, fb, answers, rec, id, why, onFirstWrong(val), onDone(val, ok) }
+  const st = () => o.rec[o.id + "~"] || (o.rec[o.id] != null ? { t: 1, last: o.rec[o.id] } : { t: 0 });
+  const isOk = (v) => o.answers.some((a) => norm(a) === norm(v));
+  let showBtn = null;
+  function lock(val, ok, shown) {
+    o.inp.value = val; o.inp.disabled = true; if (o.btn) o.btn.disabled = true; if (o.btn) o.btn.hidden = true;
+    o.inp.classList.remove("wrong", "right"); o.inp.classList.add(ok ? "right" : "wrong");
+    o.fb.hidden = false; o.fb.className = "fb " + (ok ? "ok" : "info");
+    o.fb.innerHTML = ok ? "<b>Right!</b> " + esc(o.why || "") : "Answer: <b>" + esc(o.answers[0]) + "</b>. " + esc(o.why || "");
+    if (showBtn) showBtn.remove();
+    o.onDone && o.onDone(shown ? o.answers[0] : val, ok);
+  }
+  function wrongState(val, tries) {
+    o.inp.value = val; o.inp.disabled = false; if (o.btn) { o.btn.disabled = false; o.btn.hidden = false; }
+    o.inp.classList.remove("right"); o.inp.classList.add("wrong");
+    o.fb.hidden = false; o.fb.className = "fb no";
+    o.fb.innerHTML = "<b>Not quite.</b> Fix it and try again." + (tries >= 2 ? " " : "");
+    if (tries >= 2 && !showBtn) {
+      showBtn = h("button", { class: "linkbtn small" }, "Show answer");
+      showBtn.onclick = () => { const s2 = st(); s2.shown = 1; o.rec[o.id + "~"] = s2; save(); lock(o.answers[0], false, true); };
+    }
+    if (showBtn) o.fb.append(showBtn);
+  }
+  function check() {
+    const val = o.inp.value.trim(); if (!val) return;
+    const ok = isOk(val);
+    const s2 = st(); s2.t = (s2.t || 0) + 1; s2.last = val; if (ok) s2.ok = 1;
+    if (o.rec[o.id] == null) { o.rec[o.id] = val; if (!ok && o.onFirstWrong) o.onFirstWrong(val); }
+    o.rec[o.id + "~"] = s2; markActive(); save();
+    if (ok) lock(val, true, false); else wrongState(val, s2.t);
+  }
+  if (o.btn) o.btn.onclick = check;
+  o.inp.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
+  o.inp.addEventListener("input", () => { if (o.inp.classList.contains("wrong")) { o.inp.classList.remove("wrong"); } });
+  const s0 = st();
+  if (s0.ok) lock(s0.last, true, false);
+  else if (s0.shown) lock(o.answers[0], false, true);
+  else if (s0.t) wrongState(s0.last || "", s0.t);
+}
+
 function typeBlock(it, i, rec, id, k, area) {
   const q = h("div", { class: "q" });
   q.append(h("div", { class: "qt" }, (i + 1) + ". " + esc(it.q).replace("___", '<span class="blank">&nbsp;</span>')));
@@ -1303,18 +1347,10 @@ function typeBlock(it, i, rec, id, k, area) {
   const b = h("button", { class: "btn small" }, "Check");
   const fb = h("div", { class: "fb", hidden: "" });
   row.append(inp, b);
-  function check(val, fresh) {
-    const ok = it.answers.some((a) => norm(a) === norm(val));
-    inp.value = val; inp.disabled = true; b.disabled = true;
-    fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "no");
-    fb.innerHTML = (ok ? "<b>Right!</b> " : "<b>Not quite.</b> Answer: " + esc(it.answers[0]) + ". ") + esc(it.why || "");
-    q.querySelector(".blank").textContent = ok ? val : it.answers[0];
-    if (fresh) { rec[id] = val; markActive(); save(); if (!ok) logMistake(k, area, it.q, val, it.answers[0], it.why, { kind: "type", answers: it.answers }); }
-  }
-  b.onclick = () => { if (inp.value.trim()) check(inp.value.trim(), true); };
-  inp.addEventListener("keydown", (e) => { if (e.key === "Enter" && inp.value.trim()) check(inp.value.trim(), true); });
   q.append(row, fb);
-  if (rec[id] != null) check(rec[id], false);
+  fixableInput({ inp, btn: b, fb, answers: it.answers, rec, id, why: it.why,
+    onFirstWrong: (val) => logMistake(k, area, it.q, val, it.answers[0], it.why, { kind: "type", answers: it.answers }),
+    onDone: (val) => { q.querySelector(".blank").textContent = val; } });
   return { el: q, ok: () => rec[id] != null && it.answers.some((a) => norm(a) === norm(rec[id])) };
 }
 
@@ -2132,7 +2168,7 @@ function buildListen(body, d, k, ds, ctx) {
   const p1 = part("Listen and answer", "Listen 1", "Listen to the whole conversation. Don't read anything yet. Then answer the questions.");
   p1.append(pl.el);
   const m = mcqBlock(L.mcq, ds.ans, "lm", k, "Listening"); p1.append(m.el);
-  const p2 = part("Fill the gaps", "Listen 2", "Listen again. Write the missing words. Tap ▶ to hear one line again. Press Enter after each answer.");
+  const p2 = part("Fill the gaps", "Listen 2", "Listen again. Write the missing words, then tap Check. Wrong? Fix it and check again. Tap ▶ to hear a line again.");
   L.gaps.forEach((g, gi) => {
     const line = L.lines[g.line];
     const row = h("div", { class: "gapline" });
@@ -2144,16 +2180,10 @@ function buildListen(body, d, k, ds, ctx) {
     const top = h("div", { class: "row" });
     if (tt) top.append(miniBtn(() => pl.seg(tt[0], tt[1]), "Play this line"));
     const txt = h("span"); txt.append(h("b", null, esc(line.s) + ": "), document.createTextNode(a), inp, document.createTextNode(b));
-    top.append(txt); row.append(top, fb);
-    function check(val, fresh) {
-      const ok = norm(val) === norm(g.answer);
-      inp.value = val; inp.disabled = true; inp.classList.add(ok ? "right" : "wrong");
-      if (!ok) { fb.hidden = false; fb.className = "fb no"; fb.innerHTML = "Answer: <b>" + esc(g.answer) + "</b>"; }
-      if (fresh) { ds.ans[id] = val; markActive(); save(); if (!ok) logMistake(k, "Listening", line.t.replace(g.answer, "___"), val, g.answer, "", { kind: "type", answers: [g.answer] }); }
-    }
-    inp.addEventListener("keydown", (e) => { if (e.key === "Enter" && inp.value.trim()) check(inp.value.trim(), true); });
-    inp.addEventListener("change", () => { if (inp.value.trim()) check(inp.value.trim(), true); });
-    if (ds.ans[id] != null) check(ds.ans[id], false);
+    const cb = h("button", { class: "btn small gapcheck" }, "Check");
+    top.append(txt, cb); row.append(top, fb);
+    fixableInput({ inp, btn: cb, fb, answers: [g.answer], rec: ds.ans, id, why: "",
+      onFirstWrong: (val) => logMistake(k, "Listening", line.t.replace(g.answer, "___"), val, g.answer, "", { kind: "type", answers: [g.answer] }) });
     p2.append(row);
   });
   const p3 = part("Read and shadow", "Listen 3", "Read while you listen. Tap ▶ on any line to hear it again, and repeat it out loud to yourself.");
