@@ -587,6 +587,24 @@ body { background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%) fixed;
 .dictbtn { display: inline-flex; align-items: center; gap: 8px; }
 .dictbtn .mic-i svg { width: 16px; height: 16px; fill: currentColor; display: block; }
 .dictbtn.live { background: var(--bad); }
+
+/* speak box */
+.speakbox { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface); }
+.speakbtn { display: inline-flex; align-items: center; gap: 10px; padding: 12px 24px; font-size: 1.05em; }
+.speakbtn .mic-i svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+.speakbtn.live { background: var(--bad); box-shadow: 0 0 0 6px color-mix(in srgb, var(--bad) 20%, transparent); }
+.speakbtn.live .mic-i { animation: pulse 1s infinite; }
+.dict-ta { min-height: 140px; }
+.hclock { font-family: var(--font-display); font-weight: 600; font-size: .9em; color: var(--ink); background: var(--surface); border: 1px solid var(--line); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+@media (max-width: 760px) { .hclock { display: none; } }
+.datepill { display: inline-block; justify-self: start; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25); padding: 5px 12px; border-radius: 999px; font-family: var(--font-display); font-size: .85em; font-weight: 600; margin-bottom: 10px; }
+.quote { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; background: linear-gradient(135deg, color-mix(in srgb, #F2CF73 22%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, #F2CF73 45%, var(--line)); border-radius: 22px; padding: 18px 22px; margin-bottom: 18px; box-shadow: var(--shadow); overflow: hidden; }
+.quote .qmark { font-family: Georgia, "Times New Roman", serif; font-size: 4.2em; line-height: .8; color: #E9A27F; }
+.quote .qlabel { font-family: var(--font-display); font-size: .72em; letter-spacing: .1em; text-transform: uppercase; color: var(--warn); font-weight: 700; }
+.quote .qen { font-family: var(--font-display); font-size: 1.35em; font-weight: 600; line-height: 1.3; margin: 4px 0 6px; text-wrap: balance; }
+.quote .qtr { color: var(--muted); font-size: .95em; }
+.quote .qtr span { display: inline-block; font-size: .72em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brick); background: var(--brick-soft); padding: 1px 8px; border-radius: 999px; margin-right: 8px; vertical-align: 2px; }
+.node .dotn { font-size: .72em; letter-spacing: -.01em; padding: 0 4px; text-align: center; line-height: 1.1; }
 </style>
 </head>
 <body>
@@ -616,7 +634,7 @@ const STEPS = [
   { id: "speak", name: "Speak", min: 15, desc: "Say it, record it, check it" },
   { id: "write", name: "Write", min: 10, desc: "Write, submit, get it checked" },
 ];
-const DAYNAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYNAMES = ["Spark", "Discover", "Build", "Explore", "Connect", "Grow"];
 const PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>';
 const PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>';
 const MIC = '<svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5a6 6 0 0 1-12 0H4.2a7.8 7.8 0 0 0 6.9 7.7V22h1.8v-2.8a7.8 7.8 0 0 0 6.9-7.7z"/></svg>';
@@ -946,6 +964,7 @@ function dictateBlock(rec, id, label) {
     try { r = new SR(); } catch (e) { status.textContent = "Speech-to-text didn't start. Please type instead."; return; }
     r.lang = "en-US"; r.continuous = true; r.interimResults = true;
     r.onresult = (e) => {
+      if (my !== gen) return;
       let interim = ""; finalTxt = "";
       for (let i = 0; i < e.results.length; i++) { if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript + " "; else interim += e.results[i][0].transcript; }
       ta.value = (base ? base + " " : "") + (finalTxt + interim).replace(/\s+/g, " ").trim();
@@ -964,6 +983,121 @@ function dictateBlock(rec, id, label) {
   clear.onclick = () => { if (active) end(); ta.value = ""; rec[id] = Object.assign(rec[id] || {}, { text: "" }); save(); upd(); ta.focus(); };
   return box;
 }
+
+// Speak: one button. Talk, and the words appear in an editable box. Pause, continue, restart.
+function speakBlock(rec, id) {
+  const box = h("div", { class: "speakbox" });
+  const row = h("div", { class: "row" });
+  const main = h("button", { class: "btn speakbtn" }, '<span class="mic-i">' + MIC + "</span><span>Speak</span>");
+  const restart = h("button", { class: "btn ghost small", hidden: "" }, "↻ Restart");
+  const status = h("span", { class: "small muted" });
+  row.append(main, restart, status);
+  const ta = h("textarea", { class: "dict-ta", id: "speak-" + id, "aria-label": "What you said", placeholder: "Tap Speak and start talking. Your words appear here, and you can fix them." });
+  ta.value = (rec[id] && rec[id].text) || "";
+  const wc = h("div", { class: "small muted" });
+  const upd = () => { const n = (ta.value.match(/[A-Za-z']+/g) || []).length; wc.textContent = n + " words"; };
+  const keep = () => { rec[id] = Object.assign(rec[id] || {}, { text: ta.value }); save(); };
+  box.append(row, ta, wc);
+  upd();
+  if (ta.value.trim()) restart.hidden = false;
+  if (!SR) {
+    main.hidden = true;
+    status.innerHTML = "Speech-to-text doesn't work in this browser. Use Chrome or Safari, or tap the <b>microphone key on your keyboard</b> and talk into the box.";
+  }
+  let r = null, state = "idle", base = "", t0 = 0, spent = 0, tick = null, gen = 0;
+  const secs = () => Math.round((spent + (state === "on" ? Date.now() - t0 : 0)) / 1000);
+  function paint() {
+    main.classList.toggle("live", state === "on");
+    main.lastChild.textContent = state === "on" ? "Pause" : state === "paused" ? "Continue" : "Speak";
+    restart.hidden = state === "idle" && !ta.value.trim();
+    status.textContent = state === "on" ? "Listening… " + secs() + "s" : state === "paused" ? "Paused · " + secs() + "s" : "";
+  }
+  function listen() {
+    if (activeRec) { try { activeRec.abort(); } catch (e) {} activeRec = null; }
+    base = ta.value.trim();
+    let finalTxt = "";
+    const my = gen;
+    try { r = new SR(); } catch (e) { state = "idle"; paint(); status.textContent = "Speech-to-text didn't start. You can type in the box."; return; }
+    const me = r;
+    r.lang = "en-US"; r.continuous = true; r.interimResults = true;
+    r.onresult = (e) => {
+      let interim = ""; finalTxt = "";
+      for (let i = 0; i < e.results.length; i++) { if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript + " "; else interim += e.results[i][0].transcript; }
+      ta.value = ((base ? base + " " : "") + finalTxt + interim).replace(/\s+/g, " ").trimStart();
+      upd();
+    };
+    r.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { state = "idle"; paint(); status.innerHTML = "The microphone is blocked. Allow it for this site, or use the microphone key on your keyboard."; }
+      else if (e.error === "network") { state = "idle"; paint(); status.textContent = "Speech-to-text needs the internet. Check your connection."; }
+    };
+    r.onend = () => {
+      if (my !== gen) return;
+      keep();
+      if (state === "on") { setTimeout(() => { if (state === "on" && my === gen) listen(); }, 150); return; }
+      if (r === me) { r = null; activeRec = null; }
+    };
+    try { r.start(); activeRec = r; } catch (e) { state = "idle"; paint(); status.textContent = "Speech-to-text didn't start. Please try again."; }
+  }
+  function start() { stopAll(); state = "on"; t0 = Date.now(); paint(); listen(); clearInterval(tick); tick = setInterval(paint, 500); }
+  function pause() { if (state !== "on") return; spent += Date.now() - t0; state = "paused"; gen++; if (r) { try { r.stop(); } catch (e) {} r = null; activeRec = null; } clearInterval(tick); paint(); keep(); }
+  main.onclick = () => {
+    if (state === "on") pause();
+    else { if (state === "idle") { spent = 0; const prev = rec[id] || {}; rec[id] = Object.assign(prev, { takes: (prev.takes || 0) + 1 }); markActive(); save(); } start(); }
+  };
+  restart.onclick = () => {
+    const wasOn = state === "on";
+    gen++;
+    if (r) { state = "idle"; try { r.abort(); } catch (e) {} r = null; activeRec = null; }
+    clearInterval(tick); ta.value = ""; spent = 0; state = "idle"; upd(); keep(); paint();
+    if (wasOn) main.click(); else ta.focus();
+  };
+  ta.addEventListener("input", () => { if (state === "on") pause(); keep(); upd(); paint(); });
+  return box;
+}
+
+const SLOTS = ["Spark", "Discover", "Build", "Explore", "Connect", "Grow", "Reflect"];
+function slotName(n) { return SLOTS[n - 1] || ""; }
+const QUOTES = [
+  ["Practice makes perfect.", "Pratik yapmak mükemmelleştirir. Her gün biraz çalışmak en iyi yoldur."],
+  ["Little by little, one goes far.", "Azar azar ilerleyen uzağa gider. Tıpkı “Damlaya damlaya göl olur” gibi."],
+  ["Rome wasn't built in a day.", "Roma bir günde kurulmadı. Büyük işler zaman ister, sabırlı ol."],
+  ["Every expert was once a beginner.", "Her uzman bir zamanlar acemiydi. Herkes bir yerden başlar."],
+  ["Mistakes are proof that you are trying.", "Hatalar, denediğinin kanıtıdır. Hata yapmaktan korkma."],
+  ["Slow and steady wins the race.", "Yavaş ama istikrarlı olan kazanır. Acele etme, düzenli çalış."],
+  ["Where there's a will, there's a way.", "İstek varsa yol da vardır. Türkçede: “İsteyen dağları deler.”"],
+  ["Small steps every day lead to big results.", "Her gün atılan küçük adımlar büyük sonuçlar getirir."],
+  ["Don't be afraid to speak. Be proud that you are learning.", "Konuşmaktan korkma. Öğrendiğin için gurur duy."],
+  ["Today is a good day to learn something new.", "Bugün yeni bir şey öğrenmek için güzel bir gün."],
+  ["You don't have to be perfect to make progress.", "İlerlemek için mükemmel olmak zorunda değilsin."],
+  ["A new language is a new window to the world.", "Yeni bir dil, dünyaya açılan yeni bir penceredir."],
+  ["Believe you can, and you're halfway there.", "Yapabileceğine inan, yolun yarısını geçmiş olursun."],
+  ["Progress, not perfection.", "Önemli olan mükemmellik değil, ilerlemek."],
+  ["The more you practice, the easier it gets.", "Ne kadar çok pratik yaparsan, o kadar kolaylaşır."],
+  ["Every word you learn is a small victory.", "Öğrendiğin her kelime küçük bir zaferdir."],
+  ["It always seems impossible until it's done.", "Bir iş bitene kadar hep imkânsız görünür."],
+  ["Keep going. You are doing better than you think.", "Devam et. Düşündüğünden daha iyi gidiyorsun."],
+  ["Learning is a journey, not a race.", "Öğrenmek bir yarış değil, bir yolculuktur."],
+  ["Your future self will thank you.", "Gelecekteki sen, bugün çalıştığın için sana teşekkür edecek."],
+  ["Speak, even if you make mistakes. That is how you learn.", "Hata yapsan bile konuş. Öğrenmenin yolu budur."],
+  ["One day or day one. You decide.", "“Bir gün” mü, yoksa “ilk gün” mü? Ertelemek ya da bugün başlamak senin elinde."],
+  ["Small progress is still progress.", "Küçük bir ilerleme de ilerlemedir."],
+  ["Don't compare your first chapter to someone else's twentieth.", "Kendi başlangıcını başkasının ilerlemiş hâliyle kıyaslama."],
+  ["Use English every day, and it will become a habit.", "İngilizceyi her gün kullanırsan bir alışkanlık olur."],
+  ["The best way to learn a language is to use it.", "Bir dili öğrenmenin en iyi yolu onu kullanmaktır."],
+  ["Confidence comes from practice.", "Özgüven pratikten gelir."],
+  ["Be patient with yourself.", "Kendine karşı sabırlı ol."],
+  ["Big dreams start with small steps.", "Büyük hayaller küçük adımlarla başlar."],
+  ["Learn something today that you didn't know yesterday.", "Dün bilmediğin bir şeyi bugün öğren."],
+  ["Don't give up. Good things take time.", "Vazgeçme. Güzel şeyler zaman alır."],
+];
+function todayQuote() { const d = new Date(), start = new Date(d.getFullYear(), 0, 0); const n = Math.floor((d - start) / 86400000); return QUOTES[n % QUOTES.length]; }
+function clockText(short) {
+  const d = new Date();
+  const date = d.toLocaleDateString("en-US", short ? { weekday: "short", month: "short", day: "numeric" } : { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return date + " · " + time;
+}
+setInterval(() => { document.querySelectorAll("[data-clock]").forEach((el) => { el.textContent = clockText(el.dataset.clock === "short"); }); }, 15000);
 
 // ---------- mistakes ----------
 function logMistake(k, area, q, your, right, why, extra) {
@@ -1128,7 +1262,7 @@ function isUnlocked(w, d) {
 }
 function lockMsg(w, d) {
   const o = lessonOrder(), i = o.findIndex((x) => x[0] === w && x[1] === d), p = o[i - 1];
-  const name = p[1] === 7 ? "the Week " + p[0] + " Sunday review" : "Week " + p[0] + ", " + DAYNAMES[p[1] - 1];
+  const name = p[1] === 7 ? "Week " + p[0] + ", Reflect" : "Week " + p[0] + ", " + DAYNAMES[p[1] - 1];
   return "Locked. Finish " + name + " first.";
 }
 function go(view) {
@@ -1181,7 +1315,7 @@ function achList() {
     ["f50", "Mistake master", "Fix 50 mistakes", fixed, 50],
     ["clear", "Speaker", "Record 20 speaking answers", clear, 20],
     ["writer", "Writer", "Submit 10 writing tasks", writes, 10],
-    ["perfect", "Perfect test", "Get every answer right in a Sunday test", perfect ? 1 : 0, 1],
+    ["perfect", "Perfect test", "Get every answer right in a Reflect test", perfect ? 1 : 0, 1],
     ["notes", "Note taker", "Write 5 notes", S.notes.length, 5],
   ];
   DATA.weeks.forEach((wk) => { const n = wk.days.filter((d) => dayProgress(dkey(wk.week, d.day)) === 1).length + (sundayDone(wk.week) ? 1 : 0); list.push(["wk" + wk.week, "Week " + wk.week + " done", "Finish every day of week " + wk.week + ": " + wk.title, n, 7]); });
@@ -1210,7 +1344,7 @@ function drawMenu() {
     '<div class="mp-stats"><span><b>' + streak() + '</b>day streak</span><span><b>' + lessonsDone() + "/" + totalLessonDays() + '</b>lessons</span><span class="mring"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" class="bgc"/><circle cx="24" cy="24" r="20" class="fgc" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pct / 100)).toFixed(1) + '"/></svg><i>' + pct + "%</i></span></div>";
   prof.prepend(x);
   if (nd) {
-    const cont = h("button", { class: "btn mp-go" }, nd.d === 7 ? "Start Sunday review" : (dayProgress(dkey(nd.w, nd.d)) > 0 ? "Continue today's lesson" : "Start today's lesson"));
+    const cont = h("button", { class: "btn mp-go" }, nd.d === 7 ? "Start the review and test" : (dayProgress(dkey(nd.w, nd.d)) > 0 ? "Continue today's lesson" : "Start today's lesson"));
     cont.onclick = () => go({ w: nd.w, d: nd.d }); prof.append(cont);
   }
   dr.append(prof);
@@ -1267,12 +1401,12 @@ function renderMap() {
     wk.days.forEach((d) => {
       const k = dkey(wk.week, d.day), p = dayProgress(k), isNext = nd && nd.w === wk.week && nd.d === d.day;
       const lk = !isUnlocked(wk.week, d.day);
-      const b = h("button", { class: "maprow" + (p === 1 ? " done" : "") + (isNext ? " next" : "") + (lk ? " locked" : "") }, '<span class="mdot">' + (p === 1 ? "✓" : lk ? LOCK : d.dayName.slice(0, 3)) + '</span><span class="mt"><b>' + esc(d.title) + "</b><small>" + esc(d.grammar.title) + '</small></span><span class="ms">' + (p === 1 ? "Done" : isNext ? "Next" : p > 0 ? Math.round(p * 7) + "/7" : lk ? "Locked" : "") + "</span>");
+      const b = h("button", { class: "maprow" + (p === 1 ? " done" : "") + (isNext ? " next" : "") + (lk ? " locked" : "") }, '<span class="mdot">' + (p === 1 ? "✓" : lk ? LOCK : slotName(d.day).charAt(0)) + '</span><span class="mt"><b>' + esc(d.title) + "</b><small>" + esc(d.grammar.title) + '</small></span><span class="ms">' + (p === 1 ? "Done" : isNext ? "Next" : p > 0 ? Math.round(p * 7) + "/7" : lk ? "Locked" : "") + "</span>");
       b.onclick = () => go({ w: wk.week, d: d.day }); list.append(b);
     });
     const sd = sundayDone(wk.week), isNextS = nd && nd.w === wk.week && nd.d === 7;
     const lkS = !isUnlocked(wk.week, 7);
-    const s = h("button", { class: "maprow sun" + (sd ? " done" : "") + (isNextS ? " next" : "") + (lkS ? " locked" : "") }, '<span class="mdot">' + (sd ? "✓" : lkS ? LOCK : "★") + '</span><span class="mt"><b>Review and test</b><small>Sunday</small></span><span class="ms">' + (sd ? "Done" : isNextS ? "Next" : lkS ? "Locked" : "") + "</span>");
+    const s = h("button", { class: "maprow sun" + (sd ? " done" : "") + (isNextS ? " next" : "") + (lkS ? " locked" : "") }, '<span class="mdot">' + (sd ? "✓" : lkS ? LOCK : "★") + '</span><span class="mt"><b>Review and test</b><small>Reflect</small></span><span class="ms">' + (sd ? "Done" : isNextS ? "Next" : lkS ? "Locked" : "") + "</span>");
     s.onclick = () => go({ w: wk.week, d: 7 }); list.append(s);
     c.append(list); app.append(c);
   });
@@ -1295,7 +1429,7 @@ function renderGrammarBook() {
     hits.forEach(({ wk, d }) => {
       const G = d.grammar;
       const c = h("div", { class: "card gcard" });
-      c.innerHTML = '<div class="eyebrow">Week ' + wk.week + " · " + d.dayName + " · " + esc(d.title) + "</div><h3>" + esc(G.title) + '</h3><ul class="goals">' + G.points.map((x) => "<li>" + esc(x) + "</li>").join("") + '</ul><div class="exs">' + G.examples.map((e) => "<div>" + esc(e.en) + (e.note ? ' <span class="note">— ' + esc(e.note) + "</span>" : "") + "</div>").join("") + "</div>" + (G.tr ? '<div class="tr"><b>Türkçe ipucu</b><br>' + esc(G.tr) + "</div>" : "");
+      c.innerHTML = '<div class="eyebrow">Week ' + wk.week + " · " + slotName(d.day) + " · " + esc(d.title) + "</div><h3>" + esc(G.title) + '</h3><ul class="goals">' + G.points.map((x) => "<li>" + esc(x) + "</li>").join("") + '</ul><div class="exs">' + G.examples.map((e) => "<div>" + esc(e.en) + (e.note ? ' <span class="note">— ' + esc(e.note) + "</span>" : "") + "</div>").join("") + "</div>" + (G.tr ? '<div class="tr"><b>Türkçe ipucu</b><br>' + esc(G.tr) + "</div>" : "");
       const open = h("button", { class: "linkbtn small" }, "Practice this in the lesson →");
       open.onclick = () => { const ds = dayState(dkey(wk.week, d.day)); ds.open = "grammar"; save(false); go({ w: wk.week, d: d.day }); };
       c.append(open); box.append(c);
@@ -1313,7 +1447,7 @@ function renderLibrary() {
     wk.days.forEach((d) => {
       const A = d.audio; if (!A) return;
       const row = h("div", { class: "librow" });
-      row.append(h("div", { class: "lt" }, "<b>" + d.dayName + ": " + esc(d.title) + "</b>"));
+      row.append(h("div", { class: "lt" }, "<b>" + slotName(d.day) + ": " + esc(d.title) + "</b>"));
       const tabs = h("div", { class: "seg small" });
       const slot = h("div");
       const items = [["Conversation", A.listen], ["Reading", A.read], ["Model answer", A.speak], ["New words", A.vocab]].filter((x) => x[1]);
@@ -1375,13 +1509,13 @@ function renderPractice() {
   function draw() {
     const p = prompts[S.practice.i % prompts.length];
     topic.textContent = p;
-    slot.innerHTML = ""; slot.append(recorderBlock(p, S.practice.rec, "p" + (S.practice.i % prompts.length)), dictateBlock(S.practice.rec, "t" + (S.practice.i % prompts.length)));
+    slot.innerHTML = ""; slot.append(speakBlock(S.practice.rec, "t" + (S.practice.i % prompts.length)));
   }
   next.onclick = () => { S.practice.i = (S.practice.i + 1 + Math.floor(Math.random() * 7)) % prompts.length; save(false); draw(); };
   row.append(next, h("span", { class: "small muted" }, prompts.length + " topics from your lessons"));
   c.append(h("div", { class: "eyebrow" }, "Your topic"), topic, row, slot);
   app.append(c);
-  app.append(h("div", { class: "card stack", style: "margin-top:14px" }, '<h3>Tips</h3><ul class="goals"><li>Talk for at least 1 minute. Don’t stop to think about perfect grammar.</li><li>Listen to your recording. Find 2 things to fix.</li><li>Record again and try to talk a little longer.</li></ul>'));
+  app.append(h("div", { class: "card stack", style: "margin-top:14px" }, '<h3>Tips</h3><ul class="goals"><li>Talk for at least 1 minute. Don’t stop to think about perfect grammar.</li><li>Read what you said in the box. Fix 2 things.</li><li>Tap Restart and try to talk a little longer.</li></ul>'));
   draw();
 }
 
@@ -1405,7 +1539,8 @@ function topbar() {
   const b = h("button", { class: "burger", "aria-label": "Open menu" }, "<span></span>"); b.onclick = openMenu;
   const brand = h("button", { class: "brand" }, '<span class="bm" aria-hidden="true"><i></i><i></i></span><span class="bt">English with Ebru<small>B1 · A little every day</small></span>'); brand.onclick = () => go(null);
   const right = h("div", { class: "hdr-right" });
-  if (Sync.enabled() && Sync.user()) right.append(h("span", { class: "hello" }, "Hi, Ebru"), h("span", { class: "who" }, esc(Sync.status())));
+  right.append(h("span", { class: "hclock", "data-clock": "short" }, clockText(true)));
+  if (Sync.enabled() && Sync.user()) right.append(h("span", { class: "who" }, esc(Sync.status())));
   inner.append(b, brand, right); hdr.append(inner);
   return document.createTextNode("");
 }
@@ -1480,15 +1615,19 @@ function renderHome() {
   const st = streak();
 
   // hero
+  const tq = todayQuote();
+  const qb = h("section", { class: "quote rise" }, '<span class="qmark" aria-hidden="true">“</span><div class="qbody"><div class="qlabel">Today’s motivation</div><p class="qen">' + esc(tq[0]) + '</p><p class="qtr"><span>Türkçesi</span>' + esc(tq[1]) + "</p></div>");
+  app.append(qb);
   const hero = h("section", { class: "home-hero rise" });
   const left = h("div");
+  left.append(h("div", { class: "datepill", "data-clock": "long" }, clockText(false)));
   left.append(h("div", { class: "hi" }, greeting() + ", Ebru"));
   let btnLabel = "Start today";
   if (nd) {
-    if (nd.d === 7) { left.append(h("div", { class: "eyebrow" }, "Week " + nd.w + " · Sunday"), h("h2", null, "Review and test day"), h("p", null, "A week test, your own mistakes and your words. About 45 minutes.")); btnLabel = "Start the review"; }
+    if (nd.d === 7) { left.append(h("div", { class: "eyebrow" }, "Week " + nd.w + " · Reflect"), h("h2", null, "Review and test day"), h("p", null, "A week test, your own mistakes and your words. About 45 minutes.")); btnLabel = "Start the review"; }
     else {
       const d = findDay(nd.w, nd.d), p = dayProgress(dkey(nd.w, nd.d));
-      left.append(h("div", { class: "eyebrow" }, "Today · Week " + nd.w + ", " + d.dayName), h("h2", null, esc(d.title)), h("p", null, p > 0 ? "You are " + Math.round(p * 7) + " of 7 steps in. Let’s finish it." : esc(d.listening.intro)));
+      left.append(h("div", { class: "eyebrow" }, "Up next · Week " + nd.w + " · " + slotName(d.day)), h("h2", null, esc(d.title)), h("p", null, p > 0 ? "You are " + Math.round(p * 7) + " of 7 steps in. Let’s finish it." : esc(d.listening.intro)));
       if (p > 0) btnLabel = "Continue";
     }
     const cta = h("button", { class: "cta" }, "<span>" + btnLabel + "</span>" + IC.arrow);
@@ -1499,7 +1638,7 @@ function renderHome() {
   }
   const pct = Math.round((100 * doneAll) / total);
   const C = 2 * Math.PI * 62;
-  const ring = h("div", { class: "ringbox", "aria-label": pct + "% of the course done" }, '<svg viewBox="0 0 150 150"><circle class="bgc" cx="75" cy="75" r="62"/><circle class="fgc" cx="75" cy="75" r="62" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pct / 100)).toFixed(1) + '"/></svg><div class="rt"><b>' + pct + '%</b><span>' + doneAll + " of " + total + " days</span></div>");
+  const ring = h("div", { class: "ringbox", "aria-label": pct + "% of the course done" }, '<svg viewBox="0 0 150 150"><circle class="bgc" cx="75" cy="75" r="62"/><circle class="fgc" cx="75" cy="75" r="62" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - pct / 100)).toFixed(1) + '"/></svg><div class="rt"><b>' + pct + '%</b><span>' + doneAll + " of " + total + " lessons</span></div>");
   hero.append(left, ring, h("div", { class: "skyline" }, skylineSVG()));
   app.append(hero);
 
@@ -1520,7 +1659,7 @@ function renderHome() {
     const wDone = wk.days.filter((d) => dayProgress(dkey(wk.week, d.day)) === 1).length + (sundayDone(wk.week) ? 1 : 0);
     j.append(h("div", { class: "jh" }, '<div><div class="eyebrow">Week ' + wk.week + "</div><h2>" + esc(wk.title) + '</h2></div><div class="jbar">' + wDone + ' of 7 done<i><em style="width:' + Math.round((100 * wDone) / 7) + '%"></em></i></div>'));
     const path = h("div", { class: "path" });
-    const nodes = wk.days.map((d) => ({ d: d.day, nd: d.dayName.slice(0, 3), title: d.title, p: dayProgress(dkey(wk.week, d.day)) })).concat([{ d: 7, nd: "Sun", title: "Review and test", p: sundayDone(wk.week) ? 1 : 0, sun: true }]);
+    const nodes = wk.days.map((d) => ({ d: d.day, nd: slotName(d.day), title: d.title, p: dayProgress(dkey(wk.week, d.day)) })).concat([{ d: 7, nd: "Reflect", title: "Review and test", p: sundayDone(wk.week) ? 1 : 0, sun: true }]);
     nodes.forEach((x) => {
       const isNext = nd && nd.w === wk.week && nd.d === x.d;
       const locked = !isUnlocked(wk.week, x.d);
@@ -1554,7 +1693,7 @@ function renderDay(w, dnum) {
   if (!ds.started) { ds.started = today(); save(); }
   app.innerHTML = ""; app.append(topbar());
   const head = h("div", { class: "dayhead" });
-  head.innerHTML = '<div class="eyebrow">Week ' + w + " · " + d.dayName + "</div><h1>" + esc(d.title) + '</h1><div class="small muted">Today you will learn to:</div><ul class="goals">' + d.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ul>";
+  head.innerHTML = '<div class="eyebrow">Week ' + w + " · " + slotName(d.day) + "</div><h1>" + esc(d.title) + '</h1><div class="small muted">Today you will learn to:</div><ul class="goals">' + d.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ul>";
   app.append(head);
   const steps = h("div", { class: "steps" }); steps.style.marginTop = "16px"; app.append(steps);
   let openId = ds.open !== undefined ? ds.open : (STEPS.find((s) => !ds.steps[s.id]) || STEPS[0]).id;
@@ -1604,7 +1743,7 @@ function showDayDone(w, dnum) {
   const card = h("div", { class: "card stack" }); card.style.marginTop = "16px";
   let c = 0, t = 0; Object.values(ds.steps).forEach((s) => { if (s && s.score) { c += s.score[0]; t += s.score[1]; } });
   confetti();
-  card.innerHTML = "<h2>Great work! " + esc(d.dayName) + " is done.</h2><p>Your score today: <b>" + c + " / " + t + "</b> correct. Your streak: <b>" + streak() + "</b> " + (streak() === 1 ? "day" : "days") + ".</p><p class=\"muted\">Come back tomorrow for the next lesson.</p>";
+  card.innerHTML = "<h2>Great work! " + esc(slotName(d.day)) + " is done.</h2><p>Your score today: <b>" + c + " / " + t + "</b> correct. Your streak: <b>" + streak() + "</b> " + (streak() === 1 ? "day" : "days") + ".</p><p class=\"muted\">Come back tomorrow for the next lesson.</p>";
   const row = h("div", { class: "row" });
   const b1 = h("button", { class: "btn" }, "My progress"); b1.onclick = () => go({ tool: "progress" });
   const b2 = h("button", { class: "btn ghost" }, "Home"); b2.onclick = () => go(null);
@@ -1804,11 +1943,10 @@ function pickSayLines(d) {
 function buildSpeak(body, d, k, ds, ctx) {
   const S2 = d.speaking, A = d.audio || {};
   ds.say = ds.say || {}; ds.rec = ds.rec || {};
-  const p1 = part(S2.prompt, "Your turn", "Read the plan and the sentence starters. Then press <b>Record</b> and talk for 1 to 2 minutes. Listen to yourself and record again.");
+  const p1 = part(S2.prompt, "Your turn", "Read the plan and the sentence starters. Tap <b>Speak</b> and talk for 1 to 2 minutes. Your words appear in the box. Read them and fix anything that is wrong.");
   p1.append(h("ul", { class: "goals" }, S2.steps.map((x) => "<li>" + esc(x) + "</li>").join("")));
   p1.append(h("div", { class: "starters" }, S2.starters.map((x) => "<span>" + esc(x) + "</span>").join("")));
-  p1.append(recorderBlock(S2.prompt, ds.rec, "main"));
-  p1.append(dictateBlock(ds.rec, "said"));
+  p1.append(speakBlock(ds.rec, "said"));
   const p2 = part("Model answer", null, "Listen after you try. Then say it along with the audio.");
   const model = h("div", { class: "model", hidden: "" });
   if (A.speak) model.append(makePlayer(A.speak).el);
@@ -1819,7 +1957,7 @@ function buildSpeak(body, d, k, ds, ctx) {
   body.append(p1, p2);
   if (d.partner) {
     const bp = h("div", { class: "bonus" });
-    bp.innerHTML = "<h3>Saturday bonus: talk about your week</h3><p>Answer each question out loud. Take your time.</p><ol>" + d.partner.questions.map((q) => "<li>" + esc(q) + "</li>").join("") + "</ol>";
+    bp.innerHTML = "<h3>Bonus: talk about your week</h3><p>Answer each question out loud. Take your time.</p><ol>" + d.partner.questions.map((q) => "<li>" + esc(q) + "</li>").join("") + "</ol>";
     body.append(bp);
   }
 }
@@ -1954,7 +2092,7 @@ function renderWords() {
   const learned = VOCAB.filter((v) => S.cards[v.id]);
   const list = h("div", { class: "card stack" }); list.style.marginTop = "14px";
   list.append(h("h3", null, "All my words (" + learned.length + ")"));
-  if (!learned.length) list.append(h("p", { class: "muted" }, "No words yet. Finish step 3 of Monday, Week 1."));
+  if (!learned.length) list.append(h("p", { class: "muted" }, "No words yet. Finish step 3 of your first lesson."));
   const pls = {};
   learned.forEach((v) => {
     const el = h("div", { class: "word" });
@@ -1999,10 +2137,10 @@ function renderProgress() {
       let c2 = 0, t2 = 0; Object.values(ds.steps || {}).forEach((s) => { if (s && s.score && s !== ds.steps.speak) { c2 += s.score[0]; t2 += s.score[1]; } });
       const recs = Object.values(ds.rec || {}).reduce((n, x) => n + (x.takes || 0), 0); const sayAvg = recs ? recs + (recs === 1 ? " take" : " takes") : "\u2013";
       const wr = ds.submitted ? (ds.submitted.error ? "sent" : ds.submitted.matches.length + " notes") : "–";
-      rows += "<tr><td>" + d.dayName.slice(0, 3) + '</td><td class="n">' + steps + '/7</td><td class="n">' + (t2 ? c2 + "/" + t2 : "–") + '</td><td class="n">' + sayAvg + '</td><td class="n">' + wr + "</td></tr>";
+      rows += "<tr><td>" + slotName(d.day) + '</td><td class="n">' + steps + '/7</td><td class="n">' + (t2 ? c2 + "/" + t2 : "–") + '</td><td class="n">' + sayAvg + '</td><td class="n">' + wr + "</td></tr>";
     });
     const st = S.sundays[wk.week]; const qs = st ? (() => { let c3 = 0, t3 = 0; wk.sunday.quiz.forEach((q, i) => { const a = st.ans["sq" + i]; if (a != null) { t3++; if (a === q.answer) c3++; } }); return t3 ? c3 + "/" + t3 : "–"; })() : "–";
-    rows += '<tr><td>Sun</td><td class="n">' + (st && st.done ? "done" : "–") + '</td><td class="n">test ' + qs + "</td><td></td><td></td></tr></tbody></table>";
+    rows += '<tr><td>Reflect</td><td class="n">' + (st && st.done ? "done" : "–") + '</td><td class="n">test ' + qs + "</td><td></td><td></td></tr></tbody></table>";
     tw.innerHTML = rows; c.append(tw); app.append(c);
   });
   app.append(h("p", { class: "small muted" }, "Speaking = how many times you recorded yourself. Writing = notes from the online checker."));
