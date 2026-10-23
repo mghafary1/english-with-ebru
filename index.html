@@ -579,6 +579,14 @@ body { background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%) fixed;
 .maprow.locked { opacity: .6; }
 .maprow.locked:hover { transform: none; box-shadow: none; border-color: var(--line); }
 .lockedbtn { opacity: .6; }
+
+/* what I said box */
+.dict { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--surface); }
+.dict-h { display: grid; gap: 2px; }
+.dict-ta { min-height: 120px; }
+.dictbtn { display: inline-flex; align-items: center; gap: 8px; }
+.dictbtn .mic-i svg { width: 16px; height: 16px; fill: currentColor; display: block; }
+.dictbtn.live { background: var(--bad); }
 </style>
 </head>
 <body>
@@ -908,6 +916,52 @@ function recorderBlock(promptText, rec, id) {
   function stop() { if (mr && mr.state !== "inactive") { try { mr.stop(); } catch (e) {} } }
   btn.onclick = () => (mr && mr.state === "recording" ? stop() : start());
   if (rec[id] && rec[id].takes) live.innerHTML = "You recorded <b>" + rec[id].takes + "</b> " + (rec[id].takes === 1 ? "take" : "takes") + " before. Recordings are kept only until you close the page.";
+  return box;
+}
+
+// "What I said" box: speech-to-text into an editable box. One fresh recognizer per use.
+function dictateBlock(rec, id, label) {
+  const box = h("div", { class: "dict" });
+  box.append(h("div", { class: "dict-h" }, "<b>" + (label || "Write down what you said") + "</b><span class=\"small muted\">Tap the microphone and talk. Your words appear below. Fix anything it heard wrong.</span>"));
+  const row = h("div", { class: "row" });
+  const btn = h("button", { class: "btn small dictbtn" }, '<span class="mic-i">' + MIC + "</span><span>Speak to type</span>");
+  const clear = h("button", { class: "btn ghost small" }, "Clear");
+  const status = h("span", { class: "small muted" });
+  row.append(btn, clear, status);
+  const ta = h("textarea", { class: "dict-ta", id: "dict-" + id, "aria-label": "What I said", placeholder: "Your words will appear here. You can also type, or use the microphone key on your phone keyboard." });
+  ta.value = (rec[id] && rec[id].text) || "";
+  const wc = h("div", { class: "small muted" });
+  const upd = () => { const n = (ta.value.match(/[A-Za-z']+/g) || []).length; wc.textContent = n + " words"; };
+  ta.oninput = () => { rec[id] = Object.assign(rec[id] || {}, { text: ta.value }); save(); upd(); };
+  upd();
+  box.append(row, ta, wc);
+  if (!SR) { btn.hidden = true; status.innerHTML = "Speech-to-text isn't available in this browser. Use the <b>microphone key on your keyboard</b> to dictate, or type."; }
+  let r = null, active = false, base = "";
+  function setUI(on) { active = on; btn.classList.toggle("live", on); btn.lastChild.textContent = on ? "Stop" : "Speak to type"; status.textContent = on ? "Listening… talk now." : ""; }
+  function begin() {
+    stopAll();
+    if (activeRec) { try { activeRec.abort(); } catch (e) {} activeRec = null; }
+    base = ta.value.trim();
+    let finalTxt = "";
+    try { r = new SR(); } catch (e) { status.textContent = "Speech-to-text didn't start. Please type instead."; return; }
+    r.lang = "en-US"; r.continuous = true; r.interimResults = true;
+    r.onresult = (e) => {
+      let interim = ""; finalTxt = "";
+      for (let i = 0; i < e.results.length; i++) { if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript + " "; else interim += e.results[i][0].transcript; }
+      ta.value = (base ? base + " " : "") + (finalTxt + interim).replace(/\s+/g, " ").trim();
+      upd();
+    };
+    r.onerror = (e) => { if (e.error === "no-speech") { status.textContent = "I didn't hear anything. Tap the microphone and try again."; } else if (e.error === "not-allowed" || e.error === "service-not-allowed") { status.innerHTML = "The microphone is blocked. Allow it for this site, or use the microphone key on your keyboard."; } else if (e.error !== "aborted") { status.textContent = "Speech-to-text stopped. Tap the microphone to continue."; } };
+    r.onend = () => {
+      rec[id] = Object.assign(rec[id] || {}, { text: ta.value }); save();
+      if (active && r) { base = ta.value.trim(); finalTxt = ""; try { r.start(); return; } catch (e) {} }
+      r = null; activeRec = null; setUI(false);
+    };
+    try { r.start(); activeRec = r; setUI(true); } catch (e) { r = null; status.textContent = "Speech-to-text didn't start. Please try again."; }
+  }
+  function end() { active = false; if (r) { try { r.stop(); } catch (e) {} } setUI(false); }
+  btn.onclick = () => (active ? end() : begin());
+  clear.onclick = () => { if (active) end(); ta.value = ""; rec[id] = Object.assign(rec[id] || {}, { text: "" }); save(); upd(); ta.focus(); };
   return box;
 }
 
@@ -1321,7 +1375,7 @@ function renderPractice() {
   function draw() {
     const p = prompts[S.practice.i % prompts.length];
     topic.textContent = p;
-    slot.innerHTML = ""; slot.append(recorderBlock(p, S.practice.rec, "p" + (S.practice.i % prompts.length)));
+    slot.innerHTML = ""; slot.append(recorderBlock(p, S.practice.rec, "p" + (S.practice.i % prompts.length)), dictateBlock(S.practice.rec, "t" + (S.practice.i % prompts.length)));
   }
   next.onclick = () => { S.practice.i = (S.practice.i + 1 + Math.floor(Math.random() * 7)) % prompts.length; save(false); draw(); };
   row.append(next, h("span", { class: "small muted" }, prompts.length + " topics from your lessons"));
@@ -1754,6 +1808,7 @@ function buildSpeak(body, d, k, ds, ctx) {
   p1.append(h("ul", { class: "goals" }, S2.steps.map((x) => "<li>" + esc(x) + "</li>").join("")));
   p1.append(h("div", { class: "starters" }, S2.starters.map((x) => "<span>" + esc(x) + "</span>").join("")));
   p1.append(recorderBlock(S2.prompt, ds.rec, "main"));
+  p1.append(dictateBlock(ds.rec, "said"));
   const p2 = part("Model answer", null, "Listen after you try. Then say it along with the audio.");
   const model = h("div", { class: "model", hidden: "" });
   if (A.speak) model.append(makePlayer(A.speak).el);
