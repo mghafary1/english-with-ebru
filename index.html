@@ -194,6 +194,8 @@ input.gap { width: 9em; padding: 2px 8px; }
 .typein .chk { width: 36px; height: 36px; align-self: center; }
 input.gap.right { border-color: var(--good); background: var(--good-soft); }
 input.gap.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.typein input.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.typein input.right { border-color: var(--good); background: var(--good-soft); }
 .gapline { padding: 8px 0; border-bottom: 1px dashed var(--line); }
 .blank { display: inline-block; min-width: 4em; border-bottom: 2px solid var(--muted); text-align: center; color: var(--lake); font-weight: 700; }
 .result { font-family: var(--font-display); font-weight: 600; }
@@ -1243,19 +1245,33 @@ function retryBlock(m, onChange) {
     m.streak = ok ? (m.streak || 0) + 1 : 0;
     if (m.streak >= 2) m.fixed = today();
     fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "no");
-    fb.innerHTML = ok ? (m.fixed ? "<b>Fixed!</b> You got it right twice." : "<b>Right!</b> Get it right one more time (another day) to fix it.") : "<b>Not yet.</b> Answer: " + esc(m.right) + ". " + esc(m.why || "");
+    fb.innerHTML = ok ? (m.fixed ? "<b>Fixed!</b> You got it right twice." : "<b>Right!</b> Get it right one more time (another day) to fix it.") : (m.kind === "choice" && m.opts ? "<b>Not yet.</b> Try another answer." : "<b>Not yet.</b> Answer: " + esc(m.right) + ". " + esc(m.why || ""));
     const dots = el.querySelectorAll(".dots i"); dots.forEach((d, i) => d.classList.toggle("on", m.streak > i));
     markActive(); save(); onChange && onChange(m);
   }
   if (m.kind === "choice" && m.opts) {
-    const row = h("div", { class: "opts" });
-    shuffle(m.opts, m.q.length).forEach((o) => { const b = h("button", { class: "opt" }, esc(o)); b.onclick = () => { row.querySelectorAll("button").forEach((x) => { x.disabled = true; if (x.textContent === m.right) x.classList.add("right"); }); if (o !== m.right) b.classList.add("wrong"); result(o === m.right); }; row.append(b); });
+    const row = h("div", { class: "opts" }); let tried = false;
+    shuffle(m.opts, m.q.length).forEach((o) => { const b = h("button", { class: "opt" }, esc(o)); b.onclick = () => {
+      const ok = o === m.right;
+      if (ok) { row.querySelectorAll("button").forEach((x) => { x.disabled = true; }); b.classList.add("right"); }
+      else { b.classList.add("wrong"); b.disabled = true; }
+      if (!tried) { tried = true; result(ok); }
+      else if (ok) { fb.className = "fb ok"; fb.innerHTML = "<b>Yes, that’s it!</b> " + esc(m.why || "") + " Try it again another day."; }
+    }; row.append(b); });
     el.append(row);
   } else if (m.kind === "type" || m.area === "Listening" || m.area === "Grammar") {
     const row = h("div", { class: "typein" });
     const inp = h("input", { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", "aria-label": "Your answer" });
     const b = chkBtn();
-    const go = () => { if (!inp.value.trim()) return; const ok = (m.answers || [m.right]).some((a) => norm(a) === norm(inp.value)); if (ok) m.fixedWith = inp.value.trim(); inp.disabled = b.disabled = true; result(ok); };
+    let tries = 0;
+    const go = () => {
+      if (!inp.value.trim()) return; const ok = (m.answers || [m.right]).some((a) => norm(a) === norm(inp.value)); tries++;
+      if (ok) { m.fixedWith = inp.value.trim(); inp.disabled = b.disabled = true; inp.classList.remove("wrong"); }
+      else inp.classList.add("wrong");
+      if (tries === 1) result(ok);
+      else if (ok) { fb.className = "fb ok"; fb.innerHTML = "<b>Yes, that’s it!</b> Try it again another day."; save(); }
+      if (!ok) { fb.className = "fb no"; fb.innerHTML = tries >= 2 ? "<b>Not yet.</b> Answer: " + esc(m.right) + ". " + esc(m.why || "") : "<b>Not yet.</b> Fix it and try again."; if (tries >= 2) inp.disabled = b.disabled = true; }
+    };
     b.onclick = go; inp.addEventListener("keydown", (e) => e.key === "Enter" && go());
     row.append(inp, b); el.append(row);
   } else {
@@ -1282,20 +1298,33 @@ function mcqBlock(items, rec, prefix, k, area, opts) {
     const options = it.options || (it.tf ? ["True", "False"] : []);
     const correct = it.tf ? (it.answer ? 0 : 1) : it.answer;
     const btns = options.map((o, oi) => { const b = h("button", { class: "opt" }, esc(o)); b.onclick = () => answer(oi, true); row.append(b); return b; });
+    // first choice counts for the score; a wrong choice turns red and she can pick again until she finds the right one
+    const st = () => rec[id + "~"] || (rec[id] != null ? (rec[id] === correct ? { w: [], ok: 1 } : { w: [rec[id]] }) : { w: [] });
+    function paint(s2) {
+      btns.forEach((b, bi) => { b.classList.toggle("wrong", s2.w.includes(bi)); b.classList.toggle("right", !!s2.ok && bi === correct); b.disabled = !!s2.ok || s2.w.includes(bi); });
+      if (s2.ok) {
+        fb.hidden = false; fb.className = "fb ok";
+        fb.innerHTML = (s2.w.length ? "<b>Yes, that’s it!</b> " : "<b>Right!</b> ") + esc(it.why || "");
+        if (it.q.includes("___")) q.querySelector(".blank").textContent = options[correct];
+      } else if (s2.w.length) { fb.hidden = false; fb.className = "fb no"; fb.innerHTML = "<b>Not quite.</b> Try another answer."; }
+    }
     function answer(oi, fresh) {
-      btns.forEach((b, bi) => { b.disabled = true; if (bi === correct) b.classList.add("right"); else if (bi === oi) b.classList.add("wrong"); });
-      const ok = oi === correct;
-      fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "no");
-      fb.innerHTML = (ok ? "<b>Right!</b> " : "<b>Not quite.</b> Answer: " + esc(options[correct]) + ". ") + esc(it.why || "");
-      if (fresh) {
-        rec[id] = oi; markActive(); save();
-        if (!ok) logMistake(k, area, it.q, options[oi], options[correct], it.why, { kind: "choice", opts: options });
-        if (opts.onAnswer) opts.onAnswer();
-      }
-      if (it.q.includes("___")) q.querySelector(".blank").textContent = options[correct];
+      const s2 = st(); const ok = oi === correct;
+      if (ok) s2.ok = 1; else if (!s2.w.includes(oi)) s2.w.push(oi);
+      const first = rec[id] == null;
+      if (first) rec[id] = oi;
+      rec[id + "~"] = s2; markActive(); save();
+      if (first && !ok) logMistake(k, area, it.q, options[oi], options[correct], it.why, { kind: "choice", opts: options });
+      if (first && opts.onAnswer) opts.onAnswer();
+      paint(s2);
     }
     q.append(row, fb);
-    if (rec[id] != null) answer(rec[id], false);
+    if (rec[id] != null) {
+      const s0 = st();
+      const mm = !s0.ok && S.mistakes.find((m) => m.id === k + "|" + area + "|" + it.q);
+      if (mm && (mm.fixed || (mm.streak || 0) >= 1)) { s0.ok = 1; rec[id + "~"] = s0; save(false); }
+      paint(s0);
+    }
     wrap.append(q);
   });
   const score = () => { let c = 0, t = 0; items.forEach((it, i) => { const a = rec[prefix + i]; if (a != null) { t++; const correct = it.tf ? (it.answer ? 0 : 1) : it.answer; if (a === correct) c++; } }); return [c, t, items.length]; };
