@@ -1254,7 +1254,7 @@ function retryBlock(m, onChange) {
     const row = h("div", { class: "opts" }); let tried = false;
     shuffle(m.opts, m.q.length).forEach((o) => { const b = h("button", { class: "opt" }, esc(o)); b.onclick = () => {
       const ok = o === m.right;
-      if (ok) { row.querySelectorAll("button").forEach((x) => { x.disabled = true; }); b.classList.add("right"); }
+      if (ok) { row.querySelectorAll("button").forEach((x) => { x.disabled = true; x.classList.remove("wrong"); }); b.classList.add("right"); }
       else { b.classList.add("wrong"); b.disabled = true; }
       if (!tried) { tried = true; result(ok); }
       else if (ok) { fb.className = "fb ok"; fb.innerHTML = "<b>Yes, that’s it!</b> " + esc(m.why || "") + " Try it again another day."; }
@@ -1302,7 +1302,7 @@ function mcqBlock(items, rec, prefix, k, area, opts) {
     // first choice counts for the score; a wrong choice turns red and she can pick again until she finds the right one
     const st = () => rec[id + "~"] || (rec[id] != null ? (rec[id] === correct ? { w: [], ok: 1 } : { w: [rec[id]] }) : { w: [] });
     function paint(s2) {
-      btns.forEach((b, bi) => { b.classList.toggle("wrong", s2.w.includes(bi)); b.classList.toggle("right", !!s2.ok && bi === correct); b.disabled = !!s2.ok || s2.w.includes(bi); });
+      btns.forEach((b, bi) => { b.classList.toggle("wrong", !s2.ok && s2.w.includes(bi)); b.classList.toggle("right", !!s2.ok && bi === correct); b.disabled = !!s2.ok || s2.w.includes(bi); });
       if (s2.ok) {
         fb.hidden = false; fb.className = "fb ok";
         fb.innerHTML = (s2.w.length ? "<b>Yes, that’s it!</b> " : "<b>Right!</b> ") + esc(it.why || "");
