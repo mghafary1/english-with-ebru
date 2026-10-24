@@ -752,6 +752,7 @@ const STOP = '<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>';
 const KEY = "english-with-ebru-v1";
 let S;
 let OPEN_ALL_ON = false;
+let RESCORE = () => {};
 function blank() { return { v: 1, days: {}, cards: {}, mistakes: [], sundays: {}, notes: [], activity: {}, settings: { scale: 1 }, opened: null, updated: 0 }; }
 function fill(s) { const b = blank(); for (const k in b) if (s[k] == null) s[k] = b[k]; return s; }
 function load() {
@@ -765,7 +766,7 @@ function dayState(k) { const d = S.days[k] || (S.days[k] = { steps: {}, ans: {},
 function localISO(d) { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function today() { return localISO(); }
 function addDays(iso, n) { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localISO(d); }
-function markActive() { S.activity[today()] = (S.activity[today()] || 0) + 1; }
+function markActive() { S.activity[today()] = (S.activity[today()] || 0) + 1; setTimeout(() => { try { RESCORE(); } catch (e) {} }, 0); }
 function streak() { let n = 0, d = today(); if (!S.activity[d]) d = addDays(d, -1); while (S.activity[d]) { n++; d = addDays(d, -1); } return n; }
 function applySettings() { const r = document.documentElement; r.style.setProperty("--scale", S.settings.scale || 1); const t = S.settings.theme; if (t === "light" || t === "dark") r.setAttribute("data-theme", t); else r.removeAttribute("data-theme"); }
 applySettings();
@@ -1354,7 +1355,7 @@ function mcqBlock(items, rec, prefix, k, area, opts) {
     }
     wrap.append(q);
   });
-  const score = () => { let c = 0, t = 0; items.forEach((it, i) => { const a = rec[prefix + i]; if (a != null) { t++; const correct = it.tf ? (it.answer ? 0 : 1) : it.answer; if (a === correct) c++; } }); return [c, t, items.length]; };
+  const score = () => { let c = 0, t = 0; items.forEach((it, i) => { const a = rec[prefix + i]; if (a != null) { t++; const correct = it.tf ? (it.answer ? 0 : 1) : it.answer; const fx = rec[prefix + i + "~"]; if (a === correct || (fx && fx.ok)) c++; } }); return [c, t, items.length]; };
   return { el: wrap, score, reveal: (fresh) => reveals.forEach((r) => r(fresh)) };
 }
 // Fill-in box that can be corrected: first try counts for the score; wrong answers stay editable;
@@ -1416,7 +1417,7 @@ function typeBlock(it, i, rec, id, k, area) {
   fixableInput({ inp, btn: b, fb, answers: it.answers, rec, id, why: it.why, mid: k + "|" + area + "|" + it.q,
     onFirstWrong: (val) => logMistake(k, area, it.q, val, it.answers[0], it.why, { kind: "type", answers: it.answers }),
     onDone: (val) => { q.querySelector(".blank").textContent = val; } });
-  return { el: q, ok: () => rec[id] != null && it.answers.some((a) => norm(a) === norm(rec[id])) };
+  return { el: q, ok: () => !!(rec[id + "~"] && rec[id + "~"].ok) || (rec[id] != null && it.answers.some((a) => norm(a) === norm(rec[id]))) };
 }
 
 // ---------- flashcards ----------
@@ -2152,6 +2153,13 @@ function renderDay(w, dnum) {
   const steps = h("div", { class: "steps" }); steps.style.marginTop = "16px"; app.append(steps);
   let openId = ds.open !== undefined ? ds.open : (STEPS.find((s) => !ds.steps[s.id]) || STEPS[0]).id;
   const builders = { warm: buildWarm, listen: buildListen, words: buildWords, grammar: buildGrammar, read: buildRead, speak: buildSpeak, write: buildWrite };
+  // keep scores of finished steps up to date after she fixes answers (here or in the Mistakes list)
+  let rescoreCtx = null;
+  ["listen", "words", "grammar", "read"].forEach((id) => {
+    const done = ds.steps[id]; if (!done || !done.score) return;
+    try { const c = { score: null }; builders[id](h("div"), d, k, ds, c); if (c.score) { const sc = c.score(); if (sc[0] !== done.score[0] || sc[2] !== done.score[1]) { done.score = [sc[0], sc[2]]; save(false); } } } catch (e) {}
+  });
+  RESCORE = () => { if (!rescoreCtx) return; const { id, ctx, box } = rescoreCtx; const done = ds.steps[id]; if (!done || !done.score || !ctx.score) return; const sc = ctx.score(); if (sc[0] === done.score[0]) return; done.score = [sc[0], sc[2]]; save(false); const el = box.querySelector(".sh .score"); if (el) el.textContent = sc[0] + "/" + sc[2]; };
   function draw() {
     steps.innerHTML = "";
     STEPS.forEach((st, i) => {
@@ -2166,6 +2174,7 @@ function renderDay(w, dnum) {
       if (openId === st.id) {
         const body = h("div", { class: "sb" }); const ctx = { score: null };
         builders[st.id](body, d, k, ds, ctx);
+        rescoreCtx = { id: st.id, ctx, box };
         const fin = h("button", { class: "btn stepdone" }, i === STEPS.length - 1 ? "Finish the day" : "Done — next step");
         fin.onclick = () => {
           const sc = ctx.score ? ctx.score() : null;
@@ -2268,7 +2277,7 @@ function buildListen(body, d, k, ds, ctx) {
   });
   p3.append(sc, h("p", { class: "small muted" }, "The player at the top plays the whole conversation."));
   body.append(p1, p2, p3);
-  ctx.score = () => { const s = m.score(); let c = s[0], t = s[2]; L.gaps.forEach((g, gi) => { t++; if (ds.ans["lg" + gi] != null && norm(ds.ans["lg" + gi]) === norm(g.answer)) c++; }); return [c, t, t]; };
+  ctx.score = () => { const s = m.score(); let c = s[0], t = s[2]; L.gaps.forEach((g, gi) => { t++; if ((ds.ans["lg" + gi + "~"] && ds.ans["lg" + gi + "~"].ok) || (ds.ans["lg" + gi] != null && norm(ds.ans["lg" + gi]) === norm(g.answer))) c++; }); return [c, t, t]; };
 }
 
 function buildWords(body, d, k, ds, ctx) {
